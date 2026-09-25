@@ -1,8 +1,87 @@
 # Lab 2 demo — Static Web App + CI/CD
 
-App mínima en React que muestra "Productos" consumiendo un Mock Service de
-Azure API Management. Pensada para practicar el flujo completo del Lab 2
-sin repetir el error de los 2 workflows en conflicto.
+App en React con varias páginas (Productos, Perfil, Comparar, Portal) que
+consumen distintos endpoints de Mock Services en Azure API Management.
+Pensada para practicar el flujo completo del Lab 2 sin repetir el error de
+los 2 workflows en conflicto.
+
+## ⚠️ Cambio importante en REACT_APP_API_URL
+
+Ahora que hay varias páginas, `REACT_APP_API_URL` debe apuntar solo a la
+**base** de tu API (hasta la versión), SIN el nombre del recurso al final:
+
+```
+https://tu-apim.azure-api.net/v1
+```
+
+(antes era `.../v1/products`, ahora cada página en `src/pages/` agrega su
+propio recurso: `products`, `profile`, `compare`, `portal` — mira `src/api.js`)
+
+Cada uno de esos recursos necesita su propia operación + Mock response
+en APIM, igual que hiciste para `products` en el Lab 1.
+
+## Páginas y recursos de este proyecto (EstudiAmb...)
+
+| Ruta | Página | Recurso en APIM |
+|---|---|---|
+| `/` | Panel | GET `resumen` |
+| `/comparar` | Comparar | GET `precios` |
+| `/registrar` | Registrar | GET/POST `gastos` |
+| `/plan` | Plan | GET `plan` |
+| `/perfil` | Perfil | GET `perfil` |
+
+Cada recurso necesita su propia operación + Response 200 + Mock policy en
+APIM (mismo patrón del Lab 1, repetido por cada uno). Ejemplos de JSON para
+el Sample/Definition de cada mock:
+
+**`resumen`**
+```json
+{
+  "disponible": 83090,
+  "gastado": 46910,
+  "meta": 130000,
+  "ultimoMovimiento": { "descripcion": "Frijoles + aceite · Autoservicio La Guaria", "monto": 4200 }
+}
+```
+
+**`precios`**
+```json
+[
+  { "id": 1, "tienda": "Autoservicio La Guaria", "zona": "Goicoechea", "precio": 2490, "reportes": 88 },
+  { "id": 2, "tienda": "Súper El Roble", "zona": "Sabana", "precio": 2680, "reportes": 64 }
+]
+```
+
+**`gastos`**
+```json
+[
+  { "id": 1, "descripcion": "Frijoles + aceite", "monto": 4200, "categoria": "Despensa", "fecha": "2026-05-14" }
+]
+```
+
+**`plan`**
+```json
+{
+  "meta": 130000,
+  "categorias": [
+    { "nombre": "Despensa", "presupuesto": 50000 },
+    { "nombre": "Transporte", "presupuesto": 30000 }
+  ]
+}
+```
+
+**`perfil`**
+```json
+{ "nombre": "Ana Estudiante", "universidad": "TEC", "carrera": "Ingeniería" }
+```
+
+## Agregar una página nueva
+
+1. Crea `src/pages/NuevaPagina.js` copiando el patrón de `Perfil.js`
+2. Cambia el `apiGet("...")` por el nombre del recurso que corresponda
+3. Agrégala en `src/App.js` dentro de `<Routes>`
+4. Agrega el link en `src/components/Navbar.js`
+5. En APIM, crea la operación + Response 200 + Mock policy para ese recurso
 
 ## 1. Subir a tu propio repo
 
