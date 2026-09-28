@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiGet } from "../api";
+import Layout from "../components/Layout";
 
 function Panel() {
   const [resumen, setResumen] = useState(null);
@@ -18,40 +20,74 @@ function Panel() {
       });
   }, []);
 
-  if (estado === "cargando") return <p>Cargando...</p>;
-  if (estado === "error") return <p style={{ color: "crimson" }}>Error: {error}</p>;
-
   return (
-    <div>
-      <h2>Tu plata, clara.</h2>
-      <h1>₡{resumen.disponible.toLocaleString()}</h1>
-      <p>Te queda para gastar</p>
+    <Layout title={resumen ? `Hola, ${resumen.nombre}` : "Panel"} subtitle={resumen?.quincenaLabel}>
+      {estado === "cargando" && <p>Cargando...</p>}
+      {estado === "error" && <p style={{ color: "crimson" }}>Error: {error}</p>}
 
-      <div style={{ margin: "1rem 0" }}>
-        <div style={{ background: "#eee", height: 10, borderRadius: 5 }}>
-          <div
-            style={{
-              background: "#f2c94c",
-              height: 10,
-              borderRadius: 5,
-              width: `${Math.min(100, (resumen.gastado / resumen.meta) * 100)}%`,
-            }}
-          />
-        </div>
-        <p>
-          ₡{resumen.gastado.toLocaleString()} gastados · Meta ₡{resumen.meta.toLocaleString()}
-        </p>
-      </div>
+      {estado === "ok" && (
+        <>
+          <div className="card-hero">
+            <div className="label">DISPONIBLE ESTA QUINCENA</div>
+            <div className="amount">₡{resumen.disponible.toLocaleString()}</div>
+            <div className="progress-track">
+              <div
+                className="progress-fill"
+                style={{ width: `${Math.min(100, (resumen.gastado / resumen.meta) * 100)}%` }}
+              />
+            </div>
+            <div className="progress-meta">
+              <span>
+                Gastaste ₡{resumen.gastado.toLocaleString()} de ₡{resumen.meta.toLocaleString()}
+              </span>
+              <span>{Math.round(100 - (resumen.gastado / resumen.meta) * 100)}% restante</span>
+            </div>
+            {resumen.mensaje && <div className="hero-message">{resumen.mensaje}</div>}
+          </div>
 
-      {resumen.ultimoMovimiento && (
-        <div>
-          <h3>Último movimiento</h3>
-          <p>
-            ₡{resumen.ultimoMovimiento.monto.toLocaleString()} — {resumen.ultimoMovimiento.descripcion}
-          </p>
-        </div>
+          <div className="grid-2">
+            <div className="card">
+              <h3 style={{ marginTop: 0 }}>Últimos movimientos</h3>
+              {resumen.ultimosMovimientos?.map((m) => (
+                <div className="list-row" key={m.id}>
+                  <div className="row-left">
+                    <div className="row-icon">💸</div>
+                    <div>
+                      <div className="row-title">{m.descripcion}</div>
+                      <div className="row-sub">
+                        {m.fecha} · {m.categoria}
+                      </div>
+                    </div>
+                  </div>
+                  <div>-₡{m.monto.toLocaleString()}</div>
+                </div>
+              ))}
+              <Link to="/registrar" className="link-more">
+                Registrar un gasto →
+              </Link>
+            </div>
+
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <h3 style={{ marginTop: 0 }}>Radar de precios</h3>
+              </div>
+              {resumen.radarTop3?.map((p) => (
+                <div className="list-row" key={p.id}>
+                  <div>
+                    <div className="row-title">{p.producto}</div>
+                    <div className="row-sub">{p.tienda}</div>
+                  </div>
+                  <div>₡{p.precio.toLocaleString()}</div>
+                </div>
+              ))}
+              <Link to="/comparar" className="link-more">
+                Comparar más productos →
+              </Link>
+            </div>
+          </div>
+        </>
       )}
-    </div>
+    </Layout>
   );
 }
 

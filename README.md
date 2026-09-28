@@ -31,49 +31,80 @@ en APIM, igual que hiciste para `products` en el Lab 1.
 | `/perfil` | Perfil | GET `perfil` |
 
 Cada recurso necesita su propia operación + Response 200 + Mock policy en
-APIM (mismo patrón del Lab 1, repetido por cada uno). Ejemplos de JSON para
-el Sample/Definition de cada mock:
+APIM (mismo patrón del Lab 1, repetido por cada uno). **Actualiza estos
+Samples en APIM** — cambiaron respecto a la versión anterior para calzar
+con el diseño final:
 
-**`resumen`**
+**`resumen`** (GET, usado en Panel)
 ```json
 {
-  "disponible": 83090,
-  "gastado": 46910,
-  "meta": 130000,
-  "ultimoMovimiento": { "descripcion": "Frijoles + aceite · Autoservicio La Guaria", "monto": 4200 }
-}
-```
-
-**`precios`**
-```json
-[
-  { "id": 1, "tienda": "Autoservicio La Guaria", "zona": "Goicoechea", "precio": 2490, "reportes": 88 },
-  { "id": 2, "tienda": "Súper El Roble", "zona": "Sabana", "precio": 2680, "reportes": 64 }
-]
-```
-
-**`gastos`**
-```json
-[
-  { "id": 1, "descripcion": "Frijoles + aceite", "monto": 4200, "categoria": "Despensa", "fecha": "2026-05-14" }
-]
-```
-
-**`plan`**
-```json
-{
-  "meta": 130000,
-  "categorias": [
-    { "nombre": "Despensa", "presupuesto": 50000 },
-    { "nombre": "Transporte", "presupuesto": 30000 }
+  "nombre": "María Fernanda",
+  "quincenaLabel": "Quincena del 15 al 30 de setiembre",
+  "disponible": 87400,
+  "gastado": 62600,
+  "meta": 150000,
+  "mensaje": "Vas bien: te quedan ₡5 830 por día hasta el 30. Ojo con los antojos de café.",
+  "ultimosMovimientos": [
+    { "id": 1, "descripcion": "Café del parqueo", "monto": 1200, "categoria": "Antojos", "fecha": "Hoy" },
+    { "id": 2, "descripcion": "Pasaje bus San Pedro", "monto": 430, "categoria": "Transporte", "fecha": "Ayer" }
+  ],
+  "radarTop3": [
+    { "id": 1, "producto": "Arroz Tío Pelón 1 kg", "tienda": "Pali San Pedro", "precio": 785 },
+    { "id": 2, "producto": "Café 1820 molido 250 g", "tienda": "Mas x Menos", "precio": 2150 }
   ]
 }
 ```
 
-**`perfil`**
+**`precios`** (GET, usado en Comparar — la URL incluye `?producto=...` pero
+en el mock puedes ignorar el query y devolver siempre esta forma)
 ```json
-{ "nombre": "Ana Estudiante", "universidad": "TEC", "carrera": "Ingeniería" }
+{
+  "producto": "Arroz Tío Pelón 1 kg",
+  "totalReportes": 44,
+  "resultados": [
+    { "id": 1, "tienda": "Pali San Pedro", "zona": "San Pedro", "precio": 785, "reportes": 14 },
+    { "id": 2, "tienda": "Mas x Menos Montes de Oca", "zona": "Montes de Oca", "precio": 820, "reportes": 9 }
+  ]
+}
 ```
+
+**`gastos`** (GET para historial, POST para registrar uno nuevo)
+```json
+[
+  { "id": 1, "descripcion": "Café del parqueo", "monto": 1200, "categoria": "Antojos", "fecha": "Hoy" },
+  { "id": 2, "descripcion": "Pasaje bus San Pedro", "monto": 430, "categoria": "Transporte", "fecha": "Ayer" }
+]
+```
+Para el POST, el mock puede devolver simplemente `{ "ok": true }`.
+
+**`plan`** (GET)
+```json
+{
+  "meta": 150000,
+  "categorias": [
+    { "nombre": "Comida", "gastado": 38200, "presupuesto": 60000 },
+    { "nombre": "Transporte", "gastado": 9460, "presupuesto": 20000 }
+  ]
+}
+```
+
+**`perfil`** (GET, usado también en el sidebar/header de TODAS las páginas)
+```json
+{
+  "nombre": "María Fernanda Solís",
+  "correo": "mafe.solis@ucr.ac.cr",
+  "universidad": "UCR · Rodrigo Facio",
+  "quincenaDias": "Días 15 y 30 de cada mes",
+  "racha": 6,
+  "notificacionesNoLeidas": 1,
+  "insignias": ["Primera quincena completa", "10 reportes de precios", "Racha de 7 días"]
+}
+```
+
+⚠️ Como `perfil` ahora se llama en **cada página** (para el sidebar y el
+header), asegúrate de que esa operación específica tenga el Mock response
+bien configurado — si falla, vas a ver el error repetido en las 5
+pantallas, no solo en Perfil.
 
 ## Agregar una página nueva
 

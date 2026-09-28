@@ -1,53 +1,63 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { apiGet } from "../api";
+import Layout from "../components/Layout";
 
 function Comparar() {
-  const [precios, setPrecios] = useState([]);
-  const [estado, setEstado] = useState("cargando");
+  const [query, setQuery] = useState("Arroz Tío Pelón 1 kg");
+  const [resultado, setResultado] = useState(null);
+  const [estado, setEstado] = useState("idle");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    apiGet("precios")
+  const buscar = (e) => {
+    e.preventDefault();
+    setEstado("cargando");
+    apiGet(`precios?producto=${encodeURIComponent(query)}`)
       .then((data) => {
-        setPrecios(data);
+        setResultado(data);
         setEstado("ok");
       })
       .catch((err) => {
         setError(err.message);
         setEstado("error");
       });
-  }, []);
-
-  if (estado === "cargando") return <p>Cargando...</p>;
-  if (estado === "error") return <p style={{ color: "crimson" }}>Error: {error}</p>;
+  };
 
   return (
-    <div>
-      <h2>Radar de precios</h2>
-      {precios.map((p, i) => (
-        <div
-          key={p.id}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "0.75rem",
-            background: i === 0 ? "#f2c94c33" : "transparent",
-            borderBottom: "1px solid #eee",
-          }}
-        >
-          <div>
-            <strong>{p.tienda}</strong>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#666" }}>
-              {p.zona} · {p.reportes} reportes
-            </p>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <strong>₡{p.precio.toLocaleString()}</strong>
-            {i === 0 && <p style={{ margin: 0, fontSize: "0.75rem", color: "#c0392b" }}>MÁS BARATO</p>}
-          </div>
-        </div>
-      ))}
-    </div>
+    <Layout title="Comparar" subtitle="Encontrá dónde está más barato antes de comprar">
+      <form onSubmit={buscar} className="card" style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem" }}>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          style={{ flex: 1 }}
+        />
+        <button type="submit" className="btn-primary">
+          Buscar
+        </button>
+      </form>
+
+      {estado === "cargando" && <p>Buscando...</p>}
+      {estado === "error" && <p style={{ color: "crimson" }}>Error: {error}</p>}
+
+      {estado === "ok" && resultado && (
+        <>
+          <p className="subtitle">{resultado.totalReportes} reportes de estudiantes en los últimos 15 días</p>
+          <h3>Resultados · de más barato a más caro</h3>
+          {resultado.resultados.map((r, i) => (
+            <div key={r.id} className={"result-row" + (i === 0 ? " best" : "")}>
+              <div>
+                <strong>{r.tienda}</strong>
+                {i === 0 && <span className="tag-best">MÁS BARATO</span>}
+                <div className="row-sub">
+                  {r.zona} · {r.reportes} reportes
+                </div>
+              </div>
+              <strong>₡{r.precio.toLocaleString()}</strong>
+            </div>
+          ))}
+        </>
+      )}
+    </Layout>
   );
 }
 
