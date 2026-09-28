@@ -1,64 +1,86 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { apiGet } from "../api";
-import Layout from "../components/Layout";
+import useApi from "../hooks/useApi";
+import PageHeader from "../components/PageHeader";
+import ErrorState from "../components/ErrorState";
+import { Skeleton } from "../components/Skeleton";
+import { CategoryIcon } from "../icons";
+import { colones } from "../format";
+
+const fetchPlan = () => apiGet("plan");
 
 function Plan() {
-  const [plan, setPlan] = useState(null);
-  const [estado, setEstado] = useState("cargando");
-  const [error, setError] = useState("");
+  const { data: plan, error, loading, reload } = useApi(fetchPlan);
+  const subtitle = "Ajustá la meta de tu quincena por categoría";
 
-  useEffect(() => {
-    apiGet("plan")
-      .then((data) => {
-        setPlan(data);
-        setEstado("ok");
-      })
-      .catch((err) => {
-        setError(err.message);
-        setEstado("error");
-      });
-  }, []);
+  if (error) {
+    return (
+      <>
+        <PageHeader title="Plan" subtitle={subtitle} />
+        <ErrorState error={error} onRetry={reload} />
+      </>
+    );
+  }
+
+  if (loading || !plan) {
+    return (
+      <>
+        <PageHeader title="Plan" subtitle={subtitle} />
+        <Skeleton h={110} r={14} />
+        <div className="card" style={{ marginTop: "1.25rem" }}>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} h={14} style={{ marginBottom: 22 }} />
+          ))}
+        </div>
+      </>
+    );
+  }
 
   return (
-    <Layout title="Plan" subtitle="Ajustá la meta de tu quincena por categoría">
-      {estado === "cargando" && <p>Cargando...</p>}
-      {estado === "error" && <p style={{ color: "crimson" }}>Error: {error}</p>}
+    <>
+      <PageHeader title="Plan" subtitle={subtitle} />
 
-      {estado === "ok" && (
-        <>
-          <div className="card-hero" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div className="label">META DE LA QUINCENA</div>
-              <div className="amount" style={{ marginBottom: 0 }}>₡{plan.meta.toLocaleString()}</div>
-            </div>
-            <button className="btn-primary" style={{ background: "white", color: "var(--accent-green)" }}>
-              Editar meta
-            </button>
-          </div>
+      <div className="card-hero hero-row">
+        <div>
+          <div className="label">META DE LA QUINCENA</div>
+          <div className="amount">{colones(plan.meta)}</div>
+        </div>
+        <button type="button" className="btn-primary btn-light">Editar meta</button>
+      </div>
 
-          <div className="card" style={{ marginTop: "1.25rem" }}>
-            <h3 style={{ marginTop: 0 }}>Desglose por categoría</h3>
-            {plan.categorias.map((c) => (
-              <div key={c.nombre} style={{ marginBottom: "1.25rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-                  <strong>{c.nombre}</strong>
+      <div className="card" style={{ marginTop: "1.25rem" }}>
+        <h3>Desglose por categoría</h3>
+        <div className="stagger">
+          {plan.categorias.map((c, i) => {
+            const pct = c.presupuesto ? (c.gastado / c.presupuesto) * 100 : 0;
+            return (
+              <div className="plan-row" key={c.nombre} style={{ "--i": i }}>
+                <div className="plan-head">
+                  <span className="row-left">
+                    <span className="row-icon"><CategoryIcon categoria={c.nombre} /></span>
+                    <strong>{c.nombre}</strong>
+                  </span>
                   <span className="row-sub">
-                    ₡{c.gastado.toLocaleString()} de ₡{c.presupuesto.toLocaleString()}
+                    {colones(c.gastado)} de {colones(c.presupuesto)} · {Math.round(pct)}%
                   </span>
                 </div>
-                <div className="progress-track light">
-                  <div
-                    className="progress-fill green"
-                    style={{ width: `${Math.min(100, (c.gastado / c.presupuesto) * 100)}%` }}
-                  />
+                <div
+                  className="progress-track light"
+                  role="progressbar"
+                  aria-label={`Gasto en ${c.nombre}`}
+                  aria-valuenow={Math.round(Math.min(100, pct))}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div className={"progress-fill green" + (pct >= 100 ? " over" : "")} style={{ width: `${Math.min(100, pct)}%` }} />
                 </div>
               </div>
-            ))}
-            <button className="chip">+ Agregar categoría</button>
-          </div>
-        </>
-      )}
-    </Layout>
+            );
+          })}
+        </div>
+        <button type="button" className="chip">+ Agregar categoría</button>
+      </div>
+    </>
   );
 }
 

@@ -1,63 +1,96 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { MapPin } from "lucide-react";
 import { apiGet } from "../api";
-import Layout from "../components/Layout";
+import PageHeader from "../components/PageHeader";
+import ErrorState from "../components/ErrorState";
+import { ListSkeleton } from "../components/Skeleton";
+import { colones } from "../format";
+
+const DEFAULT_QUERY = "Arroz Tío Pelón 1 kg";
 
 function Comparar() {
-  const [query, setQuery] = useState("Arroz Tío Pelón 1 kg");
+  const [query, setQuery] = useState(DEFAULT_QUERY);
+  const [busqueda, setBusqueda] = useState(DEFAULT_QUERY);
   const [resultado, setResultado] = useState(null);
-  const [estado, setEstado] = useState("idle");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const buscar = (e) => {
+  const buscar = useCallback((q) => {
+    setLoading(true);
+    setError(null);
+    setBusqueda(q);
+    apiGet(`precios?producto=${encodeURIComponent(q)}`)
+      .then(setResultado)
+      .catch(setError)
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    buscar(DEFAULT_QUERY);
+  }, [buscar]);
+
+  const puedeBuscar = query.trim().length > 0;
+
+  const onSubmit = (e) => {
     e.preventDefault();
-    setEstado("cargando");
-    apiGet(`precios?producto=${encodeURIComponent(query)}`)
-      .then((data) => {
-        setResultado(data);
-        setEstado("ok");
-      })
-      .catch((err) => {
-        setError(err.message);
-        setEstado("error");
-      });
+    if (!puedeBuscar) return;
+    buscar(query.trim());
   };
 
+  const lista = [...(resultado?.resultados || [])].sort((a, b) => a.precio - b.precio);
+
   return (
-    <Layout title="Comparar" subtitle="Encontrá dónde está más barato antes de comprar">
-      <form onSubmit={buscar} className="card" style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem" }}>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          style={{ flex: 1 }}
-        />
-        <button type="submit" className="btn-primary">
-          Buscar
-        </button>
+    <>
+      <PageHeader title="Comparar" subtitle="Encontrá dónde está más barato antes de comprar" />
+
+      <form className="card mb" onSubmit={onSubmit} noValidate>
+        <label htmlFor="producto-input">
+          Producto <span className="req" aria-hidden="true">*</span>
+        </label>
+        <div className="search-bar">
+          <input
+            id="producto-input"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            required
+            aria-required="true"
+          />
+          <button type="submit" className="btn-primary" disabled={loading || !puedeBuscar}>
+            {loading && <span className="spinner" aria-hidden="true" />}
+            Buscar
+          </button>
+        </div>
+        <p className="required-note">* Campo obligatorio para poder buscar</p>
       </form>
 
-      {estado === "cargando" && <p>Buscando...</p>}
-      {estado === "error" && <p style={{ color: "crimson" }}>Error: {error}</p>}
-
-      {estado === "ok" && resultado && (
+      {error ? (
+        <ErrorState error={error} onRetry={() => buscar(busqueda)} />
+      ) : loading ? (
+        <ListSkeleton rows={4} />
+      ) : lista.length === 0 ? (
+        <p className="empty">No encontramos reportes para «{busqueda}».</p>
+      ) : (
         <>
-          <p className="subtitle">{resultado.totalReportes} reportes de estudiantes en los últimos 15 días</p>
+          <p className="row-sub">{resultado.totalReportes} reportes de estudiantes en los últimos 15 días</p>
           <h3>Resultados · de más barato a más caro</h3>
-          {resultado.resultados.map((r, i) => (
-            <div key={r.id} className={"result-row" + (i === 0 ? " best" : "")}>
-              <div>
-                <strong>{r.tienda}</strong>
-                {i === 0 && <span className="tag-best">MÁS BARATO</span>}
-                <div className="row-sub">
-                  {r.zona} · {r.reportes} reportes
+          <div className="stagger">
+            {lista.map((r, i) => (
+              <div key={r.id} className={"result-row" + (i === 0 ? " best" : "")} style={{ "--i": i }}>
+                <div>
+                  <strong>{r.tienda}</strong>
+                  {i === 0 && <span className="tag-best">MÁS BARATO</span>}
+                  <div className="row-sub">
+                    <MapPin size={13} aria-hidden="true" style={{ verticalAlign: -2 }} /> {r.zona} · {r.reportes} reportes
+                  </div>
                 </div>
+                <strong>{colones(r.precio)}</strong>
               </div>
-              <strong>₡{r.precio.toLocaleString()}</strong>
-            </div>
-          ))}
+            ))}
+          </div>
         </>
       )}
-    </Layout>
+    </>
   );
 }
 

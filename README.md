@@ -106,6 +106,33 @@ header), asegúrate de que esa operación específica tenga el Mock response
 bien configurado — si falla, vas a ver el error repetido en las 5
 pantallas, no solo en Perfil.
 
+**`notificaciones`** (GET, nuevo — se llama en cada página para el panel de la campana)
+```json
+[
+  { "id": 1, "titulo": "Presupuesto de Transporte", "mensaje": "Te queda poco presupuesto en Transporte esta quincena.", "fecha": "Hoy", "leida": false },
+  { "id": 2, "titulo": "Bajó el precio", "mensaje": "El arroz Tío Pelón bajó de precio en Pali San Pedro.", "fecha": "Ayer", "leida": true }
+]
+```
+El punto rojo de la campana aparece si al menos una tiene `"leida": false`.
+
+## Fuentes e íconos
+
+- Tipografía: **Sora** (títulos) y **Manrope** (texto), cargadas desde Google
+  Fonts en `public/index.html`. Necesitas conexión a internet para que
+  carguen; si Azure Static Web Apps no tiene salida a `fonts.googleapis.com`
+  (no debería ser el caso, es un dominio público), cae al sans-serif del
+  sistema sin romper nada.
+- Íconos: [`lucide-react`](https://lucide.dev) (licencia ISC), ya no hay
+  emojis en la interfaz. El mapeo de categoría → ícono está en `src/icons.js`.
+
+## Reglas de formularios
+
+- Los botones "Buscar" (Comparar) y "Guardar gasto" (Registrar) están
+  **deshabilitados hasta que los campos obligatorios estén completos** —
+  no solo muestran un error al hacer click, no se pueden presionar antes.
+- Los campos obligatorios llevan un asterisco (`*`) junto a la etiqueta, y
+  cada formulario tiene una nota "* Campos obligatorios" debajo del botón.
+
 ## Agregar una página nueva
 
 1. Crea `src/pages/NuevaPagina.js` copiando el patrón de `Perfil.js`
