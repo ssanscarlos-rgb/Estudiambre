@@ -3,7 +3,7 @@ import { X, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 
 const STEPS = [
   {
-    title: "¡Bienvenida a EstudiAmb!",
+    title: "¡Bienvenida a EstudiAmbre!",
     text: "Te ayudamos a que tu plata de la quincena te alcance, y a encontrar dónde comprar más barato. Esto toma menos de un minuto.",
   },
   {

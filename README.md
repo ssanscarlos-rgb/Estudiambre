@@ -20,7 +20,7 @@ propio recurso: `products`, `profile`, `compare`, `portal` — mira `src/api.js`
 Cada uno de esos recursos necesita su propia operación + Mock response
 en APIM, igual que hiciste para `products` en el Lab 1.
 
-## Páginas y recursos de este proyecto (EstudiAmb...)
+## Páginas y recursos de este proyecto (EstudiAmbre)
 
 | Ruta | Página | Recurso en APIM |
 |---|---|---|
@@ -181,10 +181,15 @@ del workflow).
 
 Dentro de ese ambiente:
 
-- **Environment variables** → `REACT_APP_API_URL` = la URL completa de tu
-  Mock Service, ej: `https://tu-apim.azure-api.net/v1/products`
-- **Environment secrets** → `REACT_APP_API_KEY` = tu Subscription key de
-  APIM
+- **Environment variables** →
+  - `REACT_APP_API_URL` = la URL base de tu Mock Service, ej:
+    `https://tu-apim.azure-api.net/v1`
+  - `REACT_APP_GOOGLE_CLIENT_ID` = el Client ID que generas en el paso 6
+    (no es secreto, un Client ID de OAuth es público por diseño — por eso
+    va en variables y no en secrets)
+
+Ya **no se usa** `REACT_APP_API_KEY` / subscription key — la autenticación
+ahora es con Google (ver más abajo).
 
 ## 4. Disparar el deploy
 
@@ -197,7 +202,77 @@ Si al abrir la URL de Static Web Apps ves un error de CORS en la consola:
 
 API Management → tu API → versión → **All operations** → **Add policy** →
 **Allow cross-origin resource sharing (CORS)** → Origin = la URL exacta de
-tu Static Web App (sin `/` al final) → Allowed methods: GET (agrega más
-según lo que necesites) → Save.
+tu Static Web App (sin `/` al final) → Allowed methods: GET y POST →
+Allowed headers: `*` → Save.
 
-Con eso la página "Productos" debería mostrar los items del Mock Service.
+## 6. Autenticación con Google (reemplaza la subscription key)
+
+### 6.1 Crear el Client ID en Google Cloud
+
+1. Ve a [Google Cloud Console](https://console.cloud.google.com/) → crea un
+   proyecto nuevo (o usa uno existente) → **APIs & Services → Credentials**.
+2. **Create Credentials → OAuth client ID**.
+   - Si es la primera vez, te va a pedir configurar la "OAuth consent
+     screen" antes: tipo **External**, nombre de la app, tu correo — para
+     un proyecto de curso no hace falta verificarla, queda en modo "Testing".
+3. Application type: **Web application**.
+4. **Authorized JavaScript origins** → agrega la URL exacta de tu Static
+   Web App (sin `/` al final):
+   ```
+   https://tu-app.azurestaticapps.net
+   ```
+   Agrega también `http://localhost:3000` si quieres probar en local.
+5. No necesitas "Authorized redirect URIs" — el flujo usado (Google
+   Identity Services, botón de "Sign in with Google") no redirige, abre un
+   popup y devuelve el token directo al JavaScript.
+6. Crea y copia el **Client ID** (termina en `.apps.googleusercontent.com`).
+   Ese valor es `REACT_APP_GOOGLE_CLIENT_ID` del paso 3.
+
+### 6.2 Configurar APIM para validar el token de Google
+
+En vez de pedir `Ocp-Apim-Subscription-Key`, ahora APIM valida el ID token
+(JWT) que Google le dio al usuario cuando inició sesión.
+
+1. **Quitar la exigencia de subscription key**: tu API → **Settings** →
+   desmarca **"Subscription required"** → Save. (Si no lo desmarcas, vas a
+   seguir recibiendo 401 por falta de subscription key, además del que
+   pueda dar el JWT.)
+2. Tu API → **All operations** → Inbound processing → **Add policy** →
+   busca **"Validate JWT"** (o edita el XML directo con el ícono `</>`) y
+   pega, **antes** de la política de CORS que ya tenías:
+   ```xml
+   <validate-jwt header-name="Authorization" scheme="Bearer"
+                 failed-validation-httpcode="401"
+                 failed-validation-error-message="Token de Google inválido o ausente.">
+       <openid-config url="https://accounts.google.com/.well-known/openid-configuration" />
+       <audiences>
+           <audience>TU_CLIENT_ID.apps.googleusercontent.com</audience>
+       </audiences>
+       <issuers>
+           <issuer>https://accounts.google.com</issuer>
+       </issuers>
+   </validate-jwt>
+   ```
+   Reemplaza `TU_CLIENT_ID` por el Client ID real del paso 6.1.
+3. El orden de las políticas en Inbound processing debe quedar:
+   `validate-jwt` → `cors` → `mock-response` (cada operación individual
+   sigue con su propio mock-response; CORS y validate-jwt van en
+   "All operations" para que apliquen a todas).
+4. Guarda y prueba en el tab **Test** de una operación — sin un token real
+   de Google en el header `Authorization`, debería darte 401. No puedes
+   probar un 200 desde el portal (no tienes un token de Google a mano
+   ahí), pero sí desde tu app ya logueada.
+
+### 6.3 Qué cambió en el frontend
+
+- `src/auth.js` carga el script de Google, maneja el botón de login y
+  guarda el ID token (dura ~1 hora, Google lo renueva solo mientras la
+  pestaña siga abierta gracias a `auto_select`).
+- `src/api.js` ahora manda `Authorization: Bearer <token>` en vez de
+  `Ocp-Apim-Subscription-Key`.
+- La app entera queda detrás de `LoginScreen` hasta que el usuario inicia
+  sesión — revisa `src/App.js`.
+- El sidebar y Perfil muestran el nombre/foto/correo **reales** de la
+  cuenta de Google logueada, ya no los campos `nombre`/`correo` del mock
+  `perfil` (esos dos campos del mock ya no se usan, pero no pasa nada si
+  los dejas, simplemente se ignoran).

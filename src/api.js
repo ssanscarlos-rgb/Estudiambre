@@ -1,5 +1,13 @@
 const BASE_URL = process.env.REACT_APP_API_URL;
-const API_KEY = process.env.REACT_APP_API_KEY;
+
+// El token lo setea auth.js apenas Google confirma la sesión. Se guarda
+// como variable de módulo (no en React state) para que cualquier llamada
+// a apiGet/apiPost, incluso fuera de un componente, use siempre el token
+// más reciente sin tener que pasarlo como parámetro en cada lugar.
+let authToken = null;
+export function setAuthToken(token) {
+  authToken = token;
+}
 
 export class ApiError extends Error {
   constructor(message, status) {
@@ -13,7 +21,10 @@ async function request(path, options = {}) {
   try {
     res = await fetch(`${BASE_URL}/${path}`, {
       ...options,
-      headers: { "Ocp-Apim-Subscription-Key": API_KEY || "", ...(options.headers || {}) },
+      headers: {
+        Authorization: authToken ? `Bearer ${authToken}` : "",
+        ...(options.headers || {}),
+      },
     });
   } catch {
     throw new ApiError("network", 0);

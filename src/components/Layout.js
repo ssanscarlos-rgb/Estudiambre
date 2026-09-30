@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Scale, PlusCircle, Target, User, Flame, Bell, Moon, Sun, HelpCircle } from "lucide-react";
+import { LayoutDashboard, Scale, PlusCircle, Target, User, Flame, Bell, Moon, Sun, HelpCircle, LogOut } from "lucide-react";
 import { apiGet } from "../api";
 import useApi from "../hooks/useApi";
+import { useAuth } from "../auth";
 import { iniciales } from "../format";
 import NotificationsPanel from "./NotificationsPanel";
 import HelpModal from "./HelpModal";
+import Logo from "./Logo";
 
 const links = [
   { to: "/", label: "Panel", Icon: LayoutDashboard, end: true },
@@ -29,6 +31,7 @@ function initialTheme() {
 }
 
 function Layout() {
+  const { user, signOut } = useAuth();
   const { data: perfil } = useApi(fetchPerfil);
   const { data: notificaciones, loading: loadingNotif, error: errorNotif, reload: reloadNotif } =
     useApi(fetchNotificaciones);
@@ -53,9 +56,9 @@ function Layout() {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <div className="logo">E</div>
+          <Logo />
           <div>
-            <div className="name">EstudiAmb</div>
+            <div className="name">EstudiAmbre</div>
             <div className="tagline">Tu plata, sin estrés</div>
           </div>
         </div>
@@ -75,13 +78,22 @@ function Layout() {
         </nav>
 
         <div className="sidebar-bottom">
-          {perfil && (
+          {user && (
             <div className="sidebar-footer">
-              <div className="avatar">{iniciales(perfil.nombre)}</div>
-              <div>
-                <div className="full-name">{perfil.nombre?.split(" ")[0]}</div>
-                <div className="sub">{perfil.universidad}</div>
+              {user.picture ? (
+                <img className="avatar avatar-img" src={user.picture} alt="" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="avatar">{iniciales(user.name)}</div>
+              )}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="full-name">{user.name?.split(" ")[0]}</div>
+                <div className="sub" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {perfil?.universidad || user.email}
+                </div>
               </div>
+              <button type="button" className="icon-btn" onClick={signOut} aria-label="Cerrar sesión" title="Cerrar sesión">
+                <LogOut size={15} />
+              </button>
             </div>
           )}
           <div className="version">v{process.env.REACT_APP_VERSION || "dev"}</div>
@@ -89,58 +101,60 @@ function Layout() {
       </aside>
 
       <main className="main">
-        <div className="header-actions">
-          {perfil && (
-            <span className="badge-streak">
-              <Flame size={14} aria-hidden="true" /> Racha: {perfil.racha} días
-            </span>
-          )}
+        <div className="main-inner">
+          <div className="header-actions">
+            {perfil && (
+              <span className="badge-streak">
+                <Flame size={14} aria-hidden="true" /> Racha: {perfil.racha} días
+              </span>
+            )}
 
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Ayuda"
-            title="Cómo funciona la app"
-            onClick={() => setHelpOpen(true)}
-          >
-            <HelpCircle size={17} />
-          </button>
-
-          <div style={{ position: "relative" }}>
             <button
               type="button"
               className="icon-btn"
-              aria-label="Notificaciones"
-              aria-haspopup="true"
-              aria-expanded={notifOpen}
-              onClick={() => setNotifOpen((v) => !v)}
+              aria-label="Ayuda"
+              title="Cómo funciona la app"
+              onClick={() => setHelpOpen(true)}
             >
-              <Bell size={17} />
-              {unread > 0 && <span className="dot" />}
+              <HelpCircle size={17} />
             </button>
-            {notifOpen && (
-              <NotificationsPanel
-                data={notificaciones}
-                loading={loadingNotif}
-                error={errorNotif}
-                onRetry={reloadNotif}
-                onClose={() => setNotifOpen(false)}
-              />
-            )}
+
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Notificaciones"
+                aria-haspopup="true"
+                aria-expanded={notifOpen}
+                onClick={() => setNotifOpen((v) => !v)}
+              >
+                <Bell size={17} />
+                {unread > 0 && <span className="dot" />}
+              </button>
+              {notifOpen && (
+                <NotificationsPanel
+                  data={notificaciones}
+                  loading={loadingNotif}
+                  error={errorNotif}
+                  onRetry={reloadNotif}
+                  onClose={() => setNotifOpen(false)}
+                />
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
+            >
+              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
           </div>
 
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={toggleTheme}
-            aria-label={theme === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
-          >
-            {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
-          </button>
-        </div>
-
-        <div className="page-enter" key={location.pathname}>
-          <Outlet context={{ theme, toggleTheme }} />
+          <div className="page-enter" key={location.pathname}>
+            <Outlet context={{ theme, toggleTheme }} />
+          </div>
         </div>
       </main>
 

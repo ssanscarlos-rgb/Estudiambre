@@ -1,8 +1,9 @@
 import React from "react";
 import { useOutletContext } from "react-router-dom";
-import { Moon, Award } from "lucide-react";
+import { Moon, Award, LogOut } from "lucide-react";
 import { apiGet } from "../api";
 import useApi from "../hooks/useApi";
+import { useAuth } from "../auth";
 import PageHeader from "../components/PageHeader";
 import ErrorState from "../components/ErrorState";
 import { Skeleton } from "../components/Skeleton";
@@ -13,6 +14,7 @@ const fetchPerfil = () => apiGet("perfil");
 function Perfil() {
   const { data: p, error, loading, reload } = useApi(fetchPerfil);
   const { theme, toggleTheme } = useOutletContext();
+  const { user, signOut } = useAuth();
   const subtitle = "Tus datos y preferencias";
 
   if (error) {
@@ -42,11 +44,27 @@ function Perfil() {
       <PageHeader title="Perfil" subtitle={subtitle} />
 
       <div className="card mb" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-        <div className="avatar" style={{ width: 56, height: 56, fontSize: "1.2rem" }}>{iniciales(p.nombre)}</div>
-        <div>
-          <strong>{p.nombre}</strong>
-          <div className="row-sub">{p.correo}</div>
+        {user?.picture ? (
+          <img
+            className="avatar avatar-img"
+            style={{ width: 56, height: 56 }}
+            src={user.picture}
+            alt=""
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="avatar" style={{ width: 56, height: 56, fontSize: "1.2rem" }}>
+            {iniciales(user?.name)}
+          </div>
+        )}
+        <div style={{ flex: 1 }}>
+          <strong>{user?.name}</strong>
+          <div className="row-sub">{user?.email}</div>
         </div>
+        <button type="button" className="btn-ghost" onClick={signOut}>
+          <LogOut size={14} style={{ marginRight: 4, verticalAlign: -2 }} aria-hidden="true" />
+          Cerrar sesión
+        </button>
       </div>
 
       <div className="grid-2" style={{ marginTop: 0 }}>

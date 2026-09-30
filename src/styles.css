@@ -33,6 +33,7 @@ button, input { font-family: inherit; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: none; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shimmer { to { background-position: -200% 0; } }
+.main-inner { max-width: 1200px; margin: 0 auto; width: 100%; }
 .page-enter { animation: rise 0.4s var(--ease) both; }
 .stagger > * { animation: rise 0.45s var(--ease) both; animation-delay: calc(var(--i, 0) * 60ms); }
 .shake { animation: shake 0.4s; }
@@ -44,7 +45,17 @@ button, input { font-family: inherit; }
 .sidebar-brand { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 2rem; padding: 0 0.5rem; }
 .logo, .avatar { border-radius: 50%; background: var(--orange); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
 .logo { width: 34px; height: 34px; }
+.logo-img { border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #fff; }
 .avatar { width: 34px; height: 34px; font-size: 0.85rem; }
+.avatar-img { object-fit: cover; background: #fff; }
+.sidebar-footer .icon-btn { width: 28px; height: 28px; background: transparent; border-color: rgba(255,255,255,0.15); color: var(--sidebar-dim); }
+.sidebar-footer .icon-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+.login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 1.5rem; }
+.login-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 2.5rem 2rem; text-align: center; max-width: 340px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; box-shadow: 0 12px 32px rgba(0,0,0,0.08); animation: rise 0.4s var(--ease) both; }
+.login-card h1 { margin: 0.5rem 0 0; }
+.login-card .subtitle { margin-bottom: 0.75rem; }
+.google-btn-slot { margin-top: 0.5rem; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .sidebar-brand .name { font-weight: 700; font-size: 1.05rem; }
 .sidebar-brand .tagline, .sidebar-footer .sub, .version { font-size: 0.72rem; color: var(--sidebar-dim); }
 .sidebar-nav { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; }
@@ -56,7 +67,7 @@ button, input { font-family: inherit; }
 .sidebar-footer .full-name { font-size: 0.85rem; font-weight: 600; }
 .version { padding: 0.6rem 0.5rem 0; }
 
-.main { flex: 1; min-width: 0; max-width: 1200px; padding: 1.25rem 2.5rem 2rem; }
+.main { flex: 1; min-width: 0; padding: 1.25rem 2.5rem 2rem; }
 .header-actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
 .page-header { margin-bottom: 1.25rem; }
 .page-header h1 { margin: 0 0 0.25rem; font-size: 1.8rem; }
