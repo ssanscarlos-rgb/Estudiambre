@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Scale, PlusCircle, Target, User, Flame, Bell, Moon, Sun, HelpCircle, LogOut } from "lucide-react";
 import { apiGet } from "../api";
 import useApi from "../hooks/useApi";
@@ -39,6 +39,8 @@ function Layout() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const lastNavRef = useRef(0);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -51,6 +53,52 @@ function Layout() {
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
   const unread = (notificaciones || []).filter((n) => !n.leida).length;
+
+  // Cambiar de panel con la rueda del mouse (arriba/abajo), pero solo
+  // cuando no queda nada que hacer scroll dentro de un contenedor con
+  // overflow (como el dropdown de notificaciones o una lista larga) —
+  // así no se "roba" el scroll normal de la página.
+  useEffect(() => {
+    const THRESHOLD = 35;
+    const COOLDOWN = 650;
+
+    const scrollableAncestorHasRoom = (target, deltaY) => {
+      let el = target;
+      while (el && el !== document.body) {
+        const style = window.getComputedStyle(el);
+        const canScrollHere =
+          (style.overflowY === "auto" || style.overflowY === "scroll") && el.scrollHeight > el.clientHeight + 1;
+        if (canScrollHere) {
+          if (deltaY > 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1) return true;
+          if (deltaY < 0 && el.scrollTop > 1) return true;
+        }
+        el = el.parentElement;
+      }
+      return false;
+    };
+
+    const onWheel = (e) => {
+      if (Math.abs(e.deltaY) < THRESHOLD) return;
+      if (scrollableAncestorHasRoom(e.target, e.deltaY)) return;
+
+      const now = Date.now();
+      if (now - lastNavRef.current < COOLDOWN) return;
+
+      const currentIndex = links.findIndex((l) =>
+        l.end ? location.pathname === l.to : location.pathname.startsWith(l.to)
+      );
+      if (currentIndex === -1) return;
+
+      const nextIndex = currentIndex + (e.deltaY > 0 ? 1 : -1);
+      if (nextIndex < 0 || nextIndex >= links.length) return;
+
+      lastNavRef.current = now;
+      navigate(links[nextIndex].to);
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: true });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, [location.pathname, navigate]);
 
   return (
     <div className="layout">
@@ -96,7 +144,6 @@ function Layout() {
               </button>
             </div>
           )}
-          <div className="version">v{process.env.REACT_APP_VERSION || "dev"}</div>
         </div>
       </aside>
 

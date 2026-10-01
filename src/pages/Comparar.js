@@ -4,6 +4,8 @@ import { apiGet } from "../api";
 import PageHeader from "../components/PageHeader";
 import ErrorState from "../components/ErrorState";
 import { ListSkeleton } from "../components/Skeleton";
+import Suggest from "../components/Suggest";
+import { CATALOGO_PRODUCTOS } from "../catalog";
 import { colones } from "../format";
 
 const DEFAULT_QUERY = "Arroz Tío Pelón 1 kg";
@@ -48,13 +50,13 @@ function Comparar() {
           Producto <span className="req" aria-hidden="true">*</span>
         </label>
         <div className="search-bar">
-          <input
-            id="producto-input"
-            type="search"
+          <Suggest
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            required
-            aria-required="true"
+            onChange={setQuery}
+            options={CATALOGO_PRODUCTOS}
+            ariaLabel="Producto"
+            onPick={(elegido) => buscar(elegido)}
+            inputProps={{ id: "producto-input", required: true, "aria-required": "true" }}
           />
           <button type="submit" className="btn-primary" disabled={loading || !puedeBuscar}>
             {loading && <span className="spinner" aria-hidden="true" />}

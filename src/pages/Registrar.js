@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { Check } from "lucide-react";
-import { apiGet, apiPost } from "../api";
+import { Check, Pencil, Trash2, X } from "lucide-react";
+import { apiGet, apiPost, apiPut, apiDelete } from "../api";
 import useApi from "../hooks/useApi";
 import PageHeader from "../components/PageHeader";
 import ErrorState from "../components/ErrorState";
 import { ListSkeleton } from "../components/Skeleton";
+import AmountInput from "../components/AmountInput";
+import Suggest from "../components/Suggest";
 import { CategoryIcon } from "../icons";
 import { colones } from "../format";
 
@@ -22,6 +24,57 @@ function validar(descripcion, monto) {
   return e;
 }
 
+function EditRow({ gasto, onCancel, onSave }) {
+  const [descripcion, setDescripcion] = useState(gasto.descripcion);
+  const [monto, setMonto] = useState(String(gasto.monto));
+  const [categoria, setCategoria] = useState(gasto.categoria);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState(null);
+  const valido = descripcion.trim().length >= 2 && Number(monto) > 0;
+
+  const save = async () => {
+    setErr(null);
+    setSaving(true);
+    try {
+      const actualizado = { ...gasto, descripcion: descripcion.trim(), monto: Number(monto), categoria };
+      await apiPut(`gastos/${gasto.id}`, actualizado);
+      onSave(actualizado);
+    } catch (e) {
+      setErr(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="edit-row">
+      <input
+        type="text"
+        value={descripcion}
+        aria-label="Editar descripción"
+        style={{ flex: 1, minWidth: 140 }}
+        onChange={(e) => setDescripcion(e.target.value)}
+      />
+      <select value={categoria} onChange={(e) => setCategoria(e.target.value)} aria-label="Editar categoría">
+        {CATEGORIAS.map((c) => (
+          <option key={c} value={c}>{c}</option>
+        ))}
+      </select>
+      <div style={{ width: 150 }}>
+        <AmountInput value={monto} onChange={setMonto} ariaLabel="Editar monto" />
+      </div>
+      <button type="button" className="btn-primary" disabled={saving || !valido} onClick={save}>
+        {saving && <span className="spinner" aria-hidden="true" />}
+        Guardar
+      </button>
+      <button type="button" className="btn-ghost" onClick={onCancel} disabled={saving}>
+        Cancelar
+      </button>
+      {err && <ErrorState compact error={err} />}
+    </div>
+  );
+}
+
 function Registrar() {
   const { data, setData, error, loading, reload } = useApi(fetchGastos);
   const [descripcion, setDescripcion] = useState("");
@@ -33,8 +86,16 @@ function Registrar() {
   const [toast, setToast] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [page, setPage] = useState(1);
+  const [editandoId, setEditandoId] = useState(null);
+  const [borrandoId, setBorrandoId] = useState(null);
+  const [confirmarId, setConfirmarId] = useState(null);
 
   const items = useMemo(() => (Array.isArray(data) ? data : data?.items || []), [data]);
+  const descripcionesPrevias = useMemo(
+    () => Array.from(new Set(items.map((g) => g.descripcion))),
+    [items]
+  );
+
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return q ? items.filter((g) => `${g.descripcion} ${g.categoria}`.toLowerCase().includes(q)) : items;
@@ -72,6 +133,28 @@ function Registrar() {
     }
   };
 
+  const onGuardarEdicion = (actualizado) => {
+    setData(items.map((g) => (g.id === actualizado.id ? actualizado : g)));
+    setEditandoId(null);
+    setToast(`Gasto actualizado · ${actualizado.descripcion}`);
+    setTimeout(() => setToast(""), 3000);
+  };
+
+  const eliminar = async (gasto) => {
+    setBorrandoId(gasto.id);
+    try {
+      await apiDelete(`gastos/${gasto.id}`);
+      setData(items.filter((g) => g.id !== gasto.id));
+      setToast(`Gasto eliminado · ${gasto.descripcion}`);
+      setTimeout(() => setToast(""), 3000);
+    } catch (e) {
+      setSubmitError(e);
+    } finally {
+      setBorrandoId(null);
+      setConfirmarId(null);
+    }
+  };
+
   return (
     <>
       <PageHeader title="Registrar" subtitle="Anotá un gasto en menos de 15 segundos" />
@@ -84,18 +167,21 @@ function Registrar() {
               <label htmlFor="descripcion-input">
                 Descripción <span className="req" aria-hidden="true">*</span>
               </label>
-              <input
-                id="descripcion-input"
-                type="text"
-                placeholder="Ej. Almuerzo en la soda"
+              <Suggest
                 value={descripcion}
-                required
-                aria-required="true"
-                aria-invalid={!!errors.descripcion}
-                aria-describedby="err-desc"
-                onChange={(e) => {
-                  setDescripcion(e.target.value);
+                onChange={(v) => {
+                  setDescripcion(v);
                   setErrors((p) => ({ ...p, descripcion: undefined }));
+                }}
+                options={descripcionesPrevias}
+                placeholder="Ej. Almuerzo en la soda"
+                ariaLabel="Descripción"
+                inputProps={{
+                  id: "descripcion-input",
+                  required: true,
+                  "aria-required": "true",
+                  "aria-invalid": !!errors.descripcion,
+                  "aria-describedby": "err-desc",
                 }}
               />
               {errors.descripcion && <p className="field-error" id="err-desc" role="alert">{errors.descripcion}</p>}
@@ -104,19 +190,16 @@ function Registrar() {
               <label htmlFor="monto-input">
                 Monto (₡) <span className="req" aria-hidden="true">*</span>
               </label>
-              <input
-                id="monto-input"
-                type="number"
-                placeholder="0"
+              <AmountInput
                 value={monto}
-                required
-                aria-required="true"
-                aria-invalid={!!errors.monto}
-                aria-describedby="err-monto"
-                onChange={(e) => {
-                  setMonto(e.target.value);
+                onChange={(v) => {
+                  setMonto(v);
                   setErrors((p) => ({ ...p, monto: undefined }));
                 }}
+                placeholder="0"
+                ariaLabel="Monto en colones"
+                ariaInvalid={!!errors.monto}
+                ariaDescribedBy="err-monto"
               />
               {errors.monto && <p className="field-error" id="err-monto" role="alert">{errors.monto}</p>}
             </div>
@@ -153,17 +236,18 @@ function Registrar() {
       <div className="card">
         <div className="pref-row" style={{ marginBottom: "0.75rem", gap: "1rem", flexWrap: "wrap" }}>
           <h3 style={{ margin: 0 }}>Historial reciente</h3>
-          <input
-            type="search"
-            placeholder="Buscar gasto…"
-            aria-label="Buscar en el historial"
-            value={busqueda}
-            style={{ maxWidth: 240 }}
-            onChange={(e) => {
-              setBusqueda(e.target.value);
-              setPage(1);
-            }}
-          />
+          <div style={{ maxWidth: 240, width: "100%" }}>
+            <Suggest
+              value={busqueda}
+              onChange={(v) => {
+                setBusqueda(v);
+                setPage(1);
+              }}
+              options={descripcionesPrevias}
+              placeholder="Buscar gasto…"
+              ariaLabel="Buscar en el historial"
+            />
+          </div>
         </div>
 
         {error ? (
@@ -173,18 +257,66 @@ function Registrar() {
         ) : (
           <>
             <div className="stagger" key={`${current}-${busqueda}`}>
-              {visibles.map((g, i) => (
-                <div className="list-row" key={g.id} style={{ "--i": i }}>
-                  <div className="row-left">
-                    <div className="row-icon"><CategoryIcon categoria={g.categoria} /></div>
-                    <div>
-                      <div className="row-title">{g.descripcion}</div>
-                      <div className="row-sub">{g.fecha} · {g.categoria}</div>
+              {visibles.map((g, i) =>
+                editandoId === g.id ? (
+                  <EditRow key={g.id} gasto={g} onCancel={() => setEditandoId(null)} onSave={onGuardarEdicion} />
+                ) : (
+                  <div className="list-row" key={g.id} style={{ "--i": i }}>
+                    <div className="row-left">
+                      <div className="row-icon"><CategoryIcon categoria={g.categoria} /></div>
+                      <div>
+                        <div className="row-title">{g.descripcion}</div>
+                        <div className="row-sub">{g.fecha} · {g.categoria}</div>
+                      </div>
                     </div>
+
+                    {confirmarId === g.id ? (
+                      <div className="row-actions" style={{ opacity: 1 }}>
+                        <span className="row-sub">¿Eliminar?</span>
+                        <button
+                          type="button"
+                          className="row-icon-btn danger"
+                          aria-label="Confirmar eliminación"
+                          disabled={borrandoId === g.id}
+                          onClick={() => eliminar(g)}
+                        >
+                          {borrandoId === g.id ? <span className="spinner" aria-hidden="true" /> : <Check size={14} />}
+                        </button>
+                        <button
+                          type="button"
+                          className="row-icon-btn"
+                          aria-label="Cancelar eliminación"
+                          onClick={() => setConfirmarId(null)}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                        <span>-{colones(g.monto)}</span>
+                        <div className="row-actions">
+                          <button
+                            type="button"
+                            className="row-icon-btn"
+                            aria-label={`Editar ${g.descripcion}`}
+                            onClick={() => setEditandoId(g.id)}
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="row-icon-btn danger"
+                            aria-label={`Eliminar ${g.descripcion}`}
+                            onClick={() => setConfirmarId(g.id)}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div>-{colones(g.monto)}</div>
-                </div>
-              ))}
+                )
+              )}
             </div>
             {filtrados.length === 0 && (
               <p className="empty">{busqueda ? `Sin resultados para «${busqueda}».` : "Aún no hay gastos registrados."}</p>

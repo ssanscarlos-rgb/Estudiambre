@@ -26,8 +26,8 @@ en APIM, igual que hiciste para `products` en el Lab 1.
 |---|---|---|
 | `/` | Panel | GET `resumen` |
 | `/comparar` | Comparar | GET `precios` |
-| `/registrar` | Registrar | GET/POST `gastos` |
-| `/plan` | Plan | GET `plan` |
+| `/registrar` | Registrar | GET/POST/PUT/DELETE `gastos` |
+| `/plan` | Plan | GET/PUT `plan` |
 | `/perfil` | Perfil | GET `perfil` |
 
 Cada recurso necesita su propia operación + Response 200 + Mock policy en
@@ -68,16 +68,31 @@ en el mock puedes ignorar el query y devolver siempre esta forma)
 }
 ```
 
-**`gastos`** (GET para historial, POST para registrar uno nuevo)
-```json
-[
-  { "id": 1, "descripcion": "Café del parqueo", "monto": 1200, "categoria": "Antojos", "fecha": "Hoy" },
-  { "id": 2, "descripcion": "Pasaje bus San Pedro", "monto": 430, "categoria": "Transporte", "fecha": "Ayer" }
-]
-```
-Para el POST, el mock puede devolver simplemente `{ "ok": true }`.
+**`gastos`** (CRUD completo — 4 operaciones distintas en APIM, todas bajo el mismo path base)
 
-**`plan`** (GET)
+- **GET `/gastos`** — historial completo
+  ```json
+  [
+    { "id": 1, "descripcion": "Café del parqueo", "monto": 1200, "categoria": "Antojos", "fecha": "Hoy" },
+    { "id": 2, "descripcion": "Pasaje bus San Pedro", "monto": 430, "categoria": "Transporte", "fecha": "Ayer" }
+  ]
+  ```
+- **POST `/gastos`** — registrar uno nuevo. El mock puede devolver
+  simplemente `{ "ok": true }`.
+- **PUT `/gastos/{id}`** — editar uno existente. Necesita un parámetro de
+  plantilla: al escribir la URL en "Add operation" pon `/gastos/{id}` (las
+  llaves hacen que APIM detecte `id` como Template parameter automáticamente,
+  revísalo en el tab **Template**). El mock puede devolver `{ "ok": true }`.
+- **DELETE `/gastos/{id}`** — eliminar uno existente. Misma URL con
+  `{id}`. El mock puede devolver `{ "ok": true }`.
+
+El frontend hace estas 4 llamadas de verdad (editar y eliminar están en
+`Registrar.js`, con los íconos de lápiz/basura que aparecen al pasar el
+mouse sobre cada fila), pero como son mocks, no esperes que un PUT/DELETE
+persista entre recargas — cada mock responde lo mismo sin importar el
+`{id}` que le llegue. Eso es normal y suficiente para la Fase I.
+
+**`plan`** (GET y PUT)
 ```json
 {
   "meta": 150000,
@@ -87,13 +102,16 @@ Para el POST, el mock puede devolver simplemente `{ "ok": true }`.
   ]
 }
 ```
+El botón **"Editar meta"** y **"+ Agregar categoría"** de la pantalla Plan
+mandan un **PUT `/plan`** con el objeto completo actualizado. El mock de
+esa operación puede devolver el mismo JSON de arriba o `{ "ok": true }`.
 
 **`perfil`** (GET, usado también en el sidebar/header de TODAS las páginas)
 ```json
 {
   "nombre": "María Fernanda Solís",
   "correo": "mafe.solis@ucr.ac.cr",
-  "universidad": "UCR · Rodrigo Facio",
+  "universidad": "TEC San Carlos",
   "quincenaDias": "Días 15 y 30 de cada mes",
   "racha": 6,
   "notificacionesNoLeidas": 1,
@@ -125,6 +143,25 @@ El punto rojo de la campana aparece si al menos una tiene `"leida": false`.
 - Íconos: [`lucide-react`](https://lucide.dev) (licencia ISC), ya no hay
   emojis en la interfaz. El mapeo de categoría → ícono está en `src/icons.js`.
 
+## Sugerencias (autocomplete)
+
+Componente reutilizable `src/components/Suggest.js`, usado en dos lugares:
+
+- **Comparar** → sugiere contra `src/catalog.js`, una lista fija de ~15
+  productos comunes escrita a mano en el frontend. **No es un mock**, es
+  solo para autocompletar lo que el usuario escribe; la búsqueda en sí
+  sigue yendo 100% a `/precios`. Si quieres que también venga de un mock,
+  se puede mover a una operación `GET /catalogo` más adelante.
+- **Registrar** → sugiere contra las descripciones de gastos ya cargados
+  (no hace falta mock nuevo, usa los datos que ya trajo `GET /gastos`).
+
+## Monto con stepper (±₡50)
+
+`src/components/AmountInput.js` reemplaza los `<input type="number">` en
+Registrar y Plan: dos botones +/- que suman o restan de 50 en 50, sin las
+flechas nativas del navegador (que se ven distinto — y mal — según el
+navegador), y no deja escribir números negativos.
+
 ## Reglas de formularios
 
 - Los botones "Buscar" (Comparar) y "Guardar gasto" (Registrar) están
@@ -133,12 +170,30 @@ El punto rojo de la campana aparece si al menos una tiene `"leida": false`.
 - Los campos obligatorios llevan un asterisco (`*`) junto a la etiqueta, y
   cada formulario tiene una nota "* Campos obligatorios" debajo del botón.
 
+## Logo
+
+`src/components/Logo.js` carga `public/logo.png`. Si el archivo no existe
+todavía, cae automáticamente a un círculo con la letra "E" — no rompe
+nada. En cuanto pongas el archivo ahí (debe llamarse exactamente
+`logo.png`, minúsculas) y hagas commit, aparece solo, en el sidebar y
+como favicon de la pestaña del navegador.
+
+## Navegar con la rueda del mouse
+
+Scroll hacia abajo/arriba sobre la página cambia de panel (Panel →
+Comparar → Registrar → Plan → Perfil y viceversa), implementado en
+`Layout.js`. Tiene un cooldown de ~650ms entre cambios para que no se
+dispare varias veces de un solo gesto, y revisa si hay algo scrolleable
+debajo del cursor (una lista larga, el dropdown de notificaciones, etc.)
+antes de hijackear el scroll — si todavía hay contenido por scrollear ahí,
+deja que se comporte normal y no cambia de panel.
+
 ## Agregar una página nueva
 
 1. Crea `src/pages/NuevaPagina.js` copiando el patrón de `Perfil.js`
 2. Cambia el `apiGet("...")` por el nombre del recurso que corresponda
 3. Agrégala en `src/App.js` dentro de `<Routes>`
-4. Agrega el link en `src/components/Navbar.js`
+4. Agrega el link en el arreglo `links` de `src/components/Layout.js`
 5. En APIM, crea la operación + Response 200 + Mock policy para ese recurso
 
 ## 1. Subir a tu propio repo
@@ -202,7 +257,8 @@ Si al abrir la URL de Static Web Apps ves un error de CORS en la consola:
 
 API Management → tu API → versión → **All operations** → **Add policy** →
 **Allow cross-origin resource sharing (CORS)** → Origin = la URL exacta de
-tu Static Web App (sin `/` al final) → Allowed methods: GET y POST →
+tu Static Web App (sin `/` al final) → Allowed methods: **GET, POST, PUT
+y DELETE** (ya usamos los cuatro) →
 Allowed headers: `*` → Save.
 
 ## 6. Autenticación con Google (reemplaza la subscription key)
