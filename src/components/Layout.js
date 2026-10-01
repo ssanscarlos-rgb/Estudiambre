@@ -104,7 +104,7 @@ function Layout() {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <Logo />
+          <Logo src={perfil?.logoUrl} />
           <div>
             <div className="name">EstudiAmbre</div>
             <div className="tagline">Tu plata, sin estrés</div>

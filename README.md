@@ -172,11 +172,33 @@ navegador), y no deja escribir números negativos.
 
 ## Logo
 
-`src/components/Logo.js` carga `public/logo.png`. Si el archivo no existe
-todavía, cae automáticamente a un círculo con la letra "E" — no rompe
-nada. En cuanto pongas el archivo ahí (debe llamarse exactamente
-`logo.png`, minúsculas) y hagas commit, aparece solo, en el sidebar y
-como favicon de la pestaña del navegador.
+`src/components/Logo.js` ya no tiene la ruta de la imagen fija en el
+código — recibe la ubicación por prop (`src`), igual que el campo
+`"image"` del Lab 1 devolvía una URL en vez de la imagen misma.
+
+- **Dentro de la app (sidebar, ya logueado):** `Layout.js` le pasa
+  `perfil?.logoUrl`, el valor que trae el mock de `GET /perfil`. Agrega
+  este campo nuevo al Sample en APIM:
+  ```json
+  "logoUrl": "/logo.svg"
+  ```
+  (lo agregas dentro del mismo JSON de `perfil` que ya tienes, junto a
+  `nombre`, `racha`, etc.)
+- **Pantalla de login (antes de autenticarse):** ahí todavía no hay
+  sesión ni token para llamarle a ningún mock, así que `LoginScreen.js`
+  usa `<Logo size={48} />` sin `src`, lo que cae automáticamente al
+  archivo local `public/logo.svg`. Es la única excepción razonable: el
+  branding previo al login no puede depender de una llamada autenticada.
+
+En ambos casos, si la imagen no carga (ruta mala, archivo faltante),
+cae automáticamente a un círculo con la letra "E" — no rompe nada.
+
+**El archivo físico** igual tiene que existir en `public/logo.svg` de tu
+repo (o el nombre que pongas en `logoUrl`, siempre que sea una ruta
+dentro de tu propio Static Web App o una URL pública completa). El mock
+solo dice *dónde* está la imagen — el archivo en sí no sale de APIM,
+igual que en el Lab 1 las fotos de productos eran URLs a Walmart/Icon,
+no bytes de imagen dentro del JSON.
 
 ## Navegar con la rueda del mouse
 
