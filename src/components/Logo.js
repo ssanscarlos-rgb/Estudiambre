@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 // al archivo público local. Dentro de la app ya logueada, Layout.js le
 // pasa la URL que trae el mock de /perfil (campo "logoUrl"), igual que
 // el campo "image" del Lab 1.
-const LOCAL_DEFAULT = "/logo.svg";
+const LOCAL_DEFAULT = "/logo.png";
 
 function Logo({ size = 34, src }) {
   const [fallback, setFallback] = useState(false);
