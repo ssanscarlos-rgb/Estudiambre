@@ -180,14 +180,14 @@ código — recibe la ubicación por prop (`src`), igual que el campo
   `perfil?.logoUrl`, el valor que trae el mock de `GET /perfil`. Agrega
   este campo nuevo al Sample en APIM:
   ```json
-  "logoUrl": "/logo.svg"
+  "logoUrl": "/logo.png"
   ```
   (lo agregas dentro del mismo JSON de `perfil` que ya tienes, junto a
   `nombre`, `racha`, etc.)
 - **Pantalla de login (antes de autenticarse):** ahí todavía no hay
   sesión ni token para llamarle a ningún mock, así que `LoginScreen.js`
   usa `<Logo size={48} />` sin `src`, lo que cae automáticamente al
-  archivo local `public/logo.svg`. Es la única excepción razonable: el
+  archivo local `public/logo.png`. Es la única excepción razonable: el
   branding previo al login no puede depender de una llamada autenticada.
 
 En ambos casos, si la imagen no carga (ruta mala, archivo faltante),
