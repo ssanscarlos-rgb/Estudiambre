@@ -144,6 +144,7 @@ function Layout() {
               </button>
             </div>
           )}
+        {process.env.REACT_APP_VERSION && <div className="version">{process.env.REACT_APP_VERSION}</div>}
         </div>
       </aside>
 

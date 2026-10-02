@@ -57,7 +57,8 @@ button, input { font-family: inherit; }
 .login-card .subtitle { margin-bottom: 0.75rem; }
 .google-btn-slot { margin-top: 0.5rem; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .sidebar-brand .name { font-weight: 700; font-size: 1.05rem; }
-.sidebar-brand .tagline, .sidebar-footer .sub { font-size: 0.72rem; color: var(--sidebar-dim); }
+.sidebar-brand .tagline, .sidebar-footer .sub, .version { font-size: 0.72rem; color: var(--sidebar-dim); }
+.version { padding: 0.5rem 0.5rem 0; text-align: center; opacity: 0.7; }
 .sidebar-nav { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; }
 .sidebar-link { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 0.75rem; border-radius: 10px; color: var(--sidebar-text); text-decoration: none; font-size: 0.92rem; transition: background 0.2s, transform 0.2s var(--ease); }
 .sidebar-link:hover { background: rgba(255, 255, 255, 0.07); transform: translateX(3px); }

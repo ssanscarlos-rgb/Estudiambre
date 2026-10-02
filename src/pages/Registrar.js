@@ -1,7 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Pencil, Trash2, X } from "lucide-react";
 import { apiGet, apiPost, apiPut, apiDelete } from "../api";
-import useApi from "../hooks/useApi";
 import PageHeader from "../components/PageHeader";
 import ErrorState from "../components/ErrorState";
 import { ListSkeleton } from "../components/Skeleton";
@@ -12,7 +11,6 @@ import { colones } from "../format";
 
 const CATEGORIAS = ["Comida", "Transporte", "Servicios", "Estudio", "Antojos", "Otros"];
 const PAGE_SIZE = 5;
-const fetchGastos = () => apiGet("gastos");
 
 function validar(descripcion, monto) {
   const e = {};
@@ -76,7 +74,29 @@ function EditRow({ gasto, onCancel, onSave }) {
 }
 
 function Registrar() {
-  const { data, setData, error, loading, reload } = useApi(fetchGastos);
+  // Paginación real: cada cambio de página pide SU página al mock, con
+  // page/pageSize en el query string. El mock de /gastos responde con
+  // { totalRecords, page, pageSize, items } — ver README. Como es un mock
+  // estático, el contenido de "items" no cambia de verdad entre páginas,
+  // pero el contrato (y la llamada) sí son los reales.
+  const [page, setPage] = useState(1);
+  const [pageData, setPageData] = useState(null); // { totalRecords, page, pageSize, items }
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const cargarPagina = useCallback((p) => {
+    setLoading(true);
+    setError(null);
+    apiGet(`gastos?page=${p}&pageSize=${PAGE_SIZE}`)
+      .then(setPageData)
+      .catch(setError)
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    cargarPagina(page);
+  }, [page, cargarPagina]);
+
   const [descripcion, setDescripcion] = useState("");
   const [monto, setMonto] = useState("");
   const [categoria, setCategoria] = useState("Comida");
@@ -85,28 +105,29 @@ function Registrar() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const [page, setPage] = useState(1);
   const [editandoId, setEditandoId] = useState(null);
   const [borrandoId, setBorrandoId] = useState(null);
   const [confirmarId, setConfirmarId] = useState(null);
 
-  const items = useMemo(() => (Array.isArray(data) ? data : data?.items || []), [data]);
-  const descripcionesPrevias = useMemo(
-    () => Array.from(new Set(items.map((g) => g.descripcion))),
-    [items]
-  );
+  const items = useMemo(() => pageData?.items || [], [pageData]);
+  const totalRecords = pageData?.totalRecords ?? items.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
 
-  const filtrados = useMemo(() => {
+  // La búsqueda solo filtra dentro de lo que ya trajo esta página — con
+  // un mock estático no hay forma de pedirle al servidor que busque en
+  // todo el historial, esa es la limitación real de paginar sobre un mock.
+  const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return q ? items.filter((g) => `${g.descripcion} ${g.categoria}`.toLowerCase().includes(q)) : items;
   }, [items, busqueda]);
 
-  const totalPages = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
-  const current = Math.min(page, totalPages);
-  const start = (current - 1) * PAGE_SIZE;
-  const visibles = filtrados.slice(start, start + PAGE_SIZE);
+  const descripcionesPrevias = useMemo(() => Array.from(new Set(items.map((g) => g.descripcion))), [items]);
 
   const camposCompletos = descripcion.trim().length >= 2 && Number(monto) > 0;
+
+  const actualizarItemsLocal = (nuevosItems) => {
+    setPageData((prev) => ({ ...prev, items: nuevosItems }));
+  };
 
   const onSubmit = async (ev) => {
     ev.preventDefault();
@@ -119,13 +140,16 @@ function Registrar() {
     try {
       const nuevo = { descripcion: descripcion.trim(), monto: Number(monto), categoria };
       await apiPost("gastos", nuevo);
-      setData([{ id: Date.now(), fecha: "Hoy", ...nuevo }, ...items]);
+      if (page === 1) {
+        actualizarItemsLocal([{ id: Date.now(), fecha: "Hoy", ...nuevo }, ...items]);
+      } else {
+        setPage(1); // el nuevo gasto se ve en la primera página
+      }
       setToast(`Gasto guardado · ${nuevo.descripcion}`);
       setTimeout(() => setToast(""), 3000);
       setDescripcion("");
       setMonto("");
       setBusqueda("");
-      setPage(1);
     } catch (err) {
       setSubmitError(err);
     } finally {
@@ -134,7 +158,7 @@ function Registrar() {
   };
 
   const onGuardarEdicion = (actualizado) => {
-    setData(items.map((g) => (g.id === actualizado.id ? actualizado : g)));
+    actualizarItemsLocal(items.map((g) => (g.id === actualizado.id ? actualizado : g)));
     setEditandoId(null);
     setToast(`Gasto actualizado · ${actualizado.descripcion}`);
     setTimeout(() => setToast(""), 3000);
@@ -144,7 +168,7 @@ function Registrar() {
     setBorrandoId(gasto.id);
     try {
       await apiDelete(`gastos/${gasto.id}`);
-      setData(items.filter((g) => g.id !== gasto.id));
+      actualizarItemsLocal(items.filter((g) => g.id !== gasto.id));
       setToast(`Gasto eliminado · ${gasto.descripcion}`);
       setTimeout(() => setToast(""), 3000);
     } catch (e) {
@@ -239,24 +263,21 @@ function Registrar() {
           <div style={{ maxWidth: 240, width: "100%" }}>
             <Suggest
               value={busqueda}
-              onChange={(v) => {
-                setBusqueda(v);
-                setPage(1);
-              }}
+              onChange={setBusqueda}
               options={descripcionesPrevias}
-              placeholder="Buscar gasto…"
+              placeholder="Buscar en esta página…"
               ariaLabel="Buscar en el historial"
             />
           </div>
         </div>
 
         {error ? (
-          <ErrorState compact error={error} onRetry={reload} />
+          <ErrorState compact error={error} onRetry={() => cargarPagina(page)} />
         ) : loading ? (
           <ListSkeleton rows={4} />
         ) : (
           <>
-            <div className="stagger" key={`${current}-${busqueda}`}>
+            <div className="stagger" key={`${page}-${busqueda}`}>
               {visibles.map((g, i) =>
                 editandoId === g.id ? (
                   <EditRow key={g.id} gasto={g} onCancel={() => setEditandoId(null)} onSave={onGuardarEdicion} />
@@ -318,25 +339,23 @@ function Registrar() {
                 )
               )}
             </div>
-            {filtrados.length === 0 && (
-              <p className="empty">{busqueda ? `Sin resultados para «${busqueda}».` : "Aún no hay gastos registrados."}</p>
+            {visibles.length === 0 && (
+              <p className="empty">{busqueda ? `Sin resultados para «${busqueda}» en esta página.` : "No hay gastos en esta página."}</p>
             )}
-            {filtrados.length > 0 && (
-              <div className="pagination">
-                <span className="row-sub">
-                  Mostrando {start + 1}–{start + visibles.length} de {filtrados.length}
-                </span>
-                <div className="pager">
-                  <button type="button" className="btn-ghost" disabled={current <= 1} onClick={() => setPage(current - 1)}>
-                    ← Anterior
-                  </button>
-                  <span>{current} / {totalPages}</span>
-                  <button type="button" className="btn-ghost" disabled={current >= totalPages} onClick={() => setPage(current + 1)}>
-                    Siguiente →
-                  </button>
-                </div>
+            <div className="pagination">
+              <span className="row-sub">
+                Página {pageData?.page ?? page} de {totalPages} · {totalRecords} gastos en total
+              </span>
+              <div className="pager">
+                <button type="button" className="btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                  ← Anterior
+                </button>
+                <span>{page} / {totalPages}</span>
+                <button type="button" className="btn-ghost" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                  Siguiente →
+                </button>
               </div>
-            )}
+            </div>
           </>
         )}
       </div>
