@@ -38,7 +38,7 @@ con el diseño final:
 **`resumen`** (GET, usado en Panel)
 ```json
 {
-  "nombre": "María Fernanda",
+  "nombre": "Jean Carlos",
   "quincenaLabel": "Quincena del 15 al 30 de setiembre",
   "disponible": 87400,
   "gastado": 62600,
