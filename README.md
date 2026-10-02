@@ -109,10 +109,10 @@ esa operación puede devolver el mismo JSON de arriba o `{ "ok": true }`.
 **`perfil`** (GET, usado también en el sidebar/header de TODAS las páginas)
 ```json
 {
-  "nombre": "María Fernanda Solís",
-  "correo": "mafe.solis@ucr.ac.cr",
+  "nombre": "Jean Carlos Huertas Piedra",
+  "correo": "ssanscarlos@gmail.com",
   "universidad": "TEC San Carlos",
-  "quincenaDias": "Días 15 y 30 de cada mes",
+  "quincenaDias": "Días 1 y 15 de cada mes",
   "racha": 6,
   "notificacionesNoLeidas": 1,
   "insignias": ["Primera quincena completa", "10 reportes de precios", "Racha de 7 días"]
