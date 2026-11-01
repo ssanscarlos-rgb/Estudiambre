@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Scale, PlusCircle, Target, User, Flame, Bell, Moon, Sun, HelpCircle, LogOut } from "lucide-react";
-import { apiGet } from "../api";
+import { apiGet, apiPatch } from "../api";
 import useApi from "../hooks/useApi";
+import useNotificaciones from "../hooks/useNotificaciones";
 import { useAuth } from "../auth";
+import { useToast } from "./Toast";
 import { iniciales } from "../format";
 import NotificationsPanel from "./NotificationsPanel";
 import HelpModal from "./HelpModal";
@@ -18,7 +20,6 @@ const links = [
 ];
 
 const fetchPerfil = () => apiGet("perfil");
-const fetchNotificaciones = () => apiGet("notificaciones");
 
 function initialTheme() {
   try {
@@ -32,9 +33,12 @@ function initialTheme() {
 
 function Layout() {
   const { user, signOut } = useAuth();
-  const { data: perfil } = useApi(fetchPerfil);
-  const { data: notificaciones, loading: loadingNotif, error: errorNotif, reload: reloadNotif } =
-    useApi(fetchNotificaciones);
+  const toast = useToast();
+  // El perfil se pide UNA vez aquí y se comparte con las páginas por el
+  // contexto del Outlet (antes Perfil lo volvía a descargar).
+  const { data: perfil, setData: setPerfil, loading: perfilLoading, error: perfilError, reload: reloadPerfil } =
+    useApi(fetchPerfil);
+  const notif = useNotificaciones();
   const [theme, setTheme] = useState(initialTheme);
   const [notifOpen, setNotifOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -51,8 +55,29 @@ function Layout() {
     }
   }, [theme]);
 
-  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
-  const unread = (notificaciones || []).filter((n) => !n.leida).length;
+  // El tema guardado en el perfil (preferencias.tema) manda al cargar, así
+  // se conserva entre dispositivos.
+  const temaDelPerfilAplicado = useRef(false);
+  useEffect(() => {
+    const guardado = perfil?.preferencias?.tema;
+    if (!temaDelPerfilAplicado.current && (guardado === "light" || guardado === "dark")) {
+      temaDelPerfilAplicado.current = true;
+      setTheme(guardado);
+    }
+  }, [perfil]);
+
+  const toggleTheme = () => {
+    const siguiente = theme === "dark" ? "light" : "dark";
+    setTheme(siguiente);
+    if (!perfil) return;
+    setPerfil((p) => ({ ...p, preferencias: { ...p.preferencias, tema: siguiente } }));
+    // Silencioso: si falla igual queda guardado en este navegador (localStorage).
+    apiPatch("perfil", { preferencias: { tema: siguiente } }).catch(() => {});
+  };
+
+  const displayName = perfil?.nombre?.trim() || user?.name || "";
+  const unread = notif.items.filter((n) => !n.leida).length;
+  const marcarLeida = (id) => notif.markRead(id).catch((e) => toast.error(e, "No se pudo marcar como leída"));
 
   // Cambiar de panel con la rueda del mouse (arriba/abajo), pero solo
   // cuando no queda nada que hacer scroll dentro de un contenedor con
@@ -134,7 +159,7 @@ function Layout() {
                 <div className="avatar">{iniciales(user.name)}</div>
               )}
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="full-name">{user.name?.split(" ")[0]}</div>
+                <div className="full-name">{displayName.split(" ")[0]}</div>
                 <div className="sub" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {perfil?.universidad || user.email}
                 </div>
@@ -180,13 +205,7 @@ function Layout() {
                 {unread > 0 && <span className="dot" />}
               </button>
               {notifOpen && (
-                <NotificationsPanel
-                  data={notificaciones}
-                  loading={loadingNotif}
-                  error={errorNotif}
-                  onRetry={reloadNotif}
-                  onClose={() => setNotifOpen(false)}
-                />
+                <NotificationsPanel notif={notif} onRead={marcarLeida} onClose={() => setNotifOpen(false)} />
               )}
             </div>
 
@@ -201,7 +220,9 @@ function Layout() {
           </div>
 
           <div className="page-enter" key={location.pathname}>
-            <Outlet context={{ theme, toggleTheme }} />
+            <Outlet
+              context={{ theme, toggleTheme, perfil, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName }}
+            />
           </div>
         </div>
       </main>

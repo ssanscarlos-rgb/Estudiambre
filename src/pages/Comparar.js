@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { MapPin } from "lucide-react";
-import { apiGet } from "../api";
+import usePagedResource from "../hooks/usePagedResource";
 import PageHeader from "../components/PageHeader";
-import ErrorState from "../components/ErrorState";
+import ErrorStrip from "../components/ErrorStrip";
+import Pager from "../components/Pager";
 import { ListSkeleton } from "../components/Skeleton";
 import Suggest from "../components/Suggest";
 import { CATALOGO_PRODUCTOS } from "../catalog";
@@ -10,36 +11,27 @@ import { colones } from "../format";
 
 const DEFAULT_QUERY = "Arroz Tío Pelón 1 kg";
 
+const PAGE_SIZE = 5;
+
 function Comparar() {
   const [query, setQuery] = useState(DEFAULT_QUERY);
-  const [busqueda, setBusqueda] = useState(DEFAULT_QUERY);
-  const [resultado, setResultado] = useState(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState(DEFAULT_QUERY); // lo que se buscó de verdad
 
-  const buscar = useCallback((q) => {
-    setLoading(true);
-    setError(null);
-    setBusqueda(q);
-    apiGet(`precios?producto=${encodeURIComponent(q)}`)
-      .then(setResultado)
-      .catch(setError)
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    buscar(DEFAULT_QUERY);
-  }, [buscar]);
+  // Una página a la vez (página base 0); el servidor ya ordena por precio.
+  const params = useMemo(() => ({ producto: busqueda }), [busqueda]);
+  const { data, loading, error, setPage, reload } = usePagedResource("precios", { size: PAGE_SIZE, params });
 
   const puedeBuscar = query.trim().length > 0;
+  const buscar = (q) => setBusqueda(q.trim());
 
   const onSubmit = (e) => {
     e.preventDefault();
     if (!puedeBuscar) return;
-    buscar(query.trim());
+    if (query.trim() === busqueda) reload();
+    else buscar(query);
   };
 
-  const lista = [...(resultado?.resultados || [])].sort((a, b) => a.precio - b.precio);
+  const lista = data?.content || [];
 
   return (
     <>
@@ -55,7 +47,7 @@ function Comparar() {
             onChange={setQuery}
             options={CATALOGO_PRODUCTOS}
             ariaLabel="Producto"
-            onPick={(elegido) => buscar(elegido)}
+            onPick={buscar}
             inputProps={{ id: "producto-input", required: true, "aria-required": "true" }}
           />
           <button type="submit" className="btn-primary" disabled={loading || !puedeBuscar}>
@@ -66,31 +58,34 @@ function Comparar() {
         <p className="required-note">* Campo obligatorio para poder buscar</p>
       </form>
 
-      {error ? (
-        <ErrorState error={error} onRetry={() => buscar(busqueda)} />
-      ) : loading ? (
+      <ErrorStrip error={error} onRetry={reload} retrying={loading} />
+
+      {loading && !data ? (
         <ListSkeleton rows={4} />
-      ) : lista.length === 0 ? (
+      ) : data && lista.length === 0 ? (
         <p className="empty">No encontramos reportes para «{busqueda}».</p>
       ) : (
-        <>
-          <p className="row-sub">{resultado.totalReportes} reportes de estudiantes en los últimos 15 días</p>
-          <h3>Resultados · de más barato a más caro</h3>
-          <div className="stagger">
-            {lista.map((r, i) => (
-              <div key={r.id} className={"result-row" + (i === 0 ? " best" : "")} style={{ "--i": i }}>
-                <div>
-                  <strong>{r.tienda}</strong>
-                  {i === 0 && <span className="tag-best">MÁS BARATO</span>}
-                  <div className="row-sub">
-                    <MapPin size={13} aria-hidden="true" style={{ verticalAlign: -2 }} /> {r.zona} · {r.reportes} reportes
+        data && (
+          <>
+            <p className="row-sub">{data.totalElements} tiendas con precio reportado para «{busqueda}»</p>
+            <h3>Resultados · de más barato a más caro</h3>
+            <div className={"stagger" + (loading ? " refreshing" : "")} key={`${data.page}-${busqueda}`} aria-busy={loading}>
+              {lista.map((r, i) => (
+                <div key={r.id} className={"result-row" + (data.page === 0 && i === 0 ? " best" : "")} style={{ "--i": i }}>
+                  <div>
+                    <strong>{r.tienda}</strong>
+                    {data.page === 0 && i === 0 && <span className="tag-best">MÁS BARATO</span>}
+                    <div className="row-sub">
+                      <MapPin size={13} aria-hidden="true" style={{ verticalAlign: -2 }} /> {r.zona} · {r.reportes} reportes
+                    </div>
                   </div>
+                  <strong>{colones(r.precio)}</strong>
                 </div>
-                <strong>{colones(r.precio)}</strong>
-              </div>
-            ))}
-          </div>
-        </>
+              ))}
+            </div>
+            <Pager data={data} onPage={setPage} busy={loading} noun="tiendas" />
+          </>
+        )
       )}
     </>
   );

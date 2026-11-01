@@ -160,7 +160,7 @@ input[aria-invalid="true"] { border-color: var(--danger); }
 .error-icon { font-size: 1.6rem; line-height: 1; }
 .error-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .error-state.compact .error-actions:empty { display: none; }
-.toast-region { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 30; }
+.toast-region { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 30; display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; pointer-events: none; max-width: min(380px, calc(100vw - 2rem)); }
 .toast { background: #12402f; color: #fff; padding: 0.9rem 1.25rem; border-radius: 10px; font-size: 0.88rem; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); animation: toast-in 0.35s var(--ease); }
 
 /* Móvil: el sidebar pasa a barra inferior */
@@ -255,3 +255,25 @@ input[aria-invalid="true"] { border-color: var(--danger); }
 .edit-row select { padding: 0.6rem 0.7rem; border: 1px solid var(--border); border-radius: 10px; background: var(--input-bg); color: var(--text); font: inherit; font-size: 0.85rem; }
 
 /* respeta prefers-reduced-motion ya definido más abajo en el archivo */
+
+/* --- Avisos que no estorban (Fase II) --- */
+.toast { pointer-events: auto; }
+.toast .toast-text { flex: 1; line-height: 1.35; }
+.toast.error { background: var(--danger-bg); color: var(--danger); border-left: 4px solid var(--danger); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); }
+.toast-close { background: transparent; border: 0; color: inherit; opacity: 0.7; cursor: pointer; padding: 2px; border-radius: 6px; display: flex; }
+.toast-close:hover { opacity: 1; }
+
+.error-strip { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.8rem; margin-bottom: 0.9rem; border-radius: 10px; background: var(--danger-bg); border-left: 3px solid var(--danger); color: var(--danger); font-size: 0.85rem; animation: rise 0.25s var(--ease) both; }
+.error-strip svg { flex: none; }
+.error-strip-text { flex: 1; color: var(--text); }
+.error-strip-text strong { color: var(--danger); }
+.error-strip .btn-ghost { flex: none; padding: 0.25rem 0.65rem; }
+
+.refreshing { opacity: 0.55; transition: opacity 0.15s; }
+.field-error.on-hero { color: #ffd9d6; flex-basis: 100%; margin: 0; }
+
+/* --- Notificaciones paginadas --- */
+button.notif-item { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: transparent; border: 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+button.notif-item:hover { filter: brightness(0.97); }
+.notif-more { padding: 0.6rem 1rem; text-align: center; border-top: 1px solid var(--border); }
+.notif-more-error { padding: 0.5rem 1rem 0; font-size: 0.78rem; color: var(--danger); text-align: center; }

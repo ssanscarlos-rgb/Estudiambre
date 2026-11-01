@@ -19,3 +19,6 @@ export const CATALOGO_PRODUCTOS = [
   "Detergente 1 kg",
   "Agua embotellada 1.5 L",
 ];
+
+// Producto cuyo radar de precios se muestra en el Panel (GET /precios?producto=...&size=3).
+export const PRODUCTO_RADAR = CATALOGO_PRODUCTOS[0];

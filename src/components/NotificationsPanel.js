@@ -1,9 +1,12 @@
 import React from "react";
 import { Bell, AlertTriangle } from "lucide-react";
 import { Skeleton } from "./Skeleton";
+import { formatFecha } from "../format";
 
-function NotificationsPanel({ data, loading, error, onRetry, onClose }) {
-  const items = data || [];
+// `notif` viene de useNotificaciones (Layout). Pagina de a 10: "Cargar más"
+// agrega la siguiente página debajo, sin tapar lo ya cargado.
+function NotificationsPanel({ notif, onRead, onClose }) {
+  const { items, loading, error, reload, hasMore, loadMore, loadingMore, errorMore } = notif;
 
   return (
     <>
@@ -18,15 +21,13 @@ function NotificationsPanel({ data, loading, error, onRetry, onClose }) {
           </div>
         )}
 
-        {error && (
+        {!loading && error && items.length === 0 && (
           <div className="dropdown-empty">
             <AlertTriangle size={18} aria-hidden="true" />
             <p>No pudimos cargar tus notificaciones.</p>
-            {onRetry && (
-              <button type="button" className="btn-ghost" onClick={onRetry}>
-                Reintentar
-              </button>
-            )}
+            <button type="button" className="btn-ghost" onClick={reload}>
+              Reintentar
+            </button>
           </div>
         )}
 
@@ -37,15 +38,46 @@ function NotificationsPanel({ data, loading, error, onRetry, onClose }) {
           </div>
         )}
 
-        {!loading &&
-          !error &&
-          items.map((n) => (
-            <div className={"notif-item" + (n.leida ? "" : " unread")} key={n.id} role="menuitem">
+        {items.map((n) => {
+          const contenido = (
+            <>
               <div className="notif-title">{n.titulo}</div>
               <div className="notif-msg">{n.mensaje}</div>
-              <div className="notif-fecha">{n.fecha}</div>
+              <div className="notif-fecha">{formatFecha(n.fecha)}</div>
+            </>
+          );
+          // Tocar una no leída la marca como leída (PATCH {leida: true}).
+          return n.leida ? (
+            <div className="notif-item" key={n.id} role="menuitem">
+              {contenido}
             </div>
-          ))}
+          ) : (
+            <button
+              type="button"
+              className="notif-item unread"
+              key={n.id}
+              role="menuitem"
+              title="Marcar como leída"
+              onClick={() => onRead(n.id)}
+            >
+              {contenido}
+            </button>
+          );
+        })}
+
+        {errorMore && (
+          <div className="notif-more-error" role="alert">
+            <span>No pudimos cargar más.</span>
+          </div>
+        )}
+
+        {hasMore && (
+          <div className="notif-more">
+            <button type="button" className="btn-ghost" disabled={loadingMore} onClick={loadMore}>
+              {loadingMore ? "Cargando…" : errorMore ? "Reintentar" : "Cargar más"}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

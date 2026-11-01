@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 // fetcher debe ser una función estable (definida fuera del componente).
+// Al recargar se conserva `data` anterior: si el reintento falla, la pantalla
+// sigue mostrando lo que ya tenía y `error` solo agrega la franja de aviso.
 export default function useApi(fetcher) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);

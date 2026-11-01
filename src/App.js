@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import "./styles.css";
 import { AuthProvider, useAuth } from "./auth";
+import { ToastProvider } from "./components/Toast";
 import LoginScreen from "./components/LoginScreen";
 import Layout from "./components/Layout";
 import ErrorState from "./components/ErrorState";
@@ -41,7 +42,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Gate />
+        <ToastProvider>
+          <Gate />
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

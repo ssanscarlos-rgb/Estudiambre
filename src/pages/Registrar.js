@@ -1,13 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Check, Pencil, Trash2, X } from "lucide-react";
-import { apiGet, apiPost, apiPut, apiDelete } from "../api";
+import { apiPost, apiPatch, apiDelete } from "../api";
+import usePagedResource from "../hooks/usePagedResource";
+import { useToast } from "../components/Toast";
 import PageHeader from "../components/PageHeader";
-import ErrorState from "../components/ErrorState";
+import ErrorStrip from "../components/ErrorStrip";
+import Pager from "../components/Pager";
 import { ListSkeleton } from "../components/Skeleton";
 import AmountInput from "../components/AmountInput";
 import Suggest from "../components/Suggest";
 import { CategoryIcon } from "../icons";
-import { colones } from "../format";
+import { colones, formatFecha } from "../format";
 
 const CATEGORIAS = ["Comida", "Transporte", "Servicios", "Estudio", "Antojos", "Otros"];
 const PAGE_SIZE = 5;
@@ -23,22 +26,30 @@ function validar(descripcion, monto) {
 }
 
 function EditRow({ gasto, onCancel, onSave }) {
+  const toast = useToast();
   const [descripcion, setDescripcion] = useState(gasto.descripcion);
   const [monto, setMonto] = useState(String(gasto.monto));
   const [categoria, setCategoria] = useState(gasto.categoria);
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState(null);
   const valido = descripcion.trim().length >= 2 && Number(monto) > 0;
 
   const save = async () => {
-    setErr(null);
+    // PATCH: solo viajan los campos que cambiaron.
+    const cambios = {};
+    if (descripcion.trim() !== gasto.descripcion) cambios.descripcion = descripcion.trim();
+    if (Number(monto) !== gasto.monto) cambios.monto = Number(monto);
+    if (categoria !== gasto.categoria) cambios.categoria = categoria;
+    if (Object.keys(cambios).length === 0) {
+      onCancel();
+      return;
+    }
+
     setSaving(true);
     try {
-      const actualizado = { ...gasto, descripcion: descripcion.trim(), monto: Number(monto), categoria };
-      await apiPut(`gastos/${gasto.id}`, actualizado);
-      onSave(actualizado);
+      const res = await apiPatch(`gastos/${gasto.id}`, cambios);
+      onSave(res && res.id !== undefined ? res : { ...gasto, ...cambios });
     } catch (e) {
-      setErr(e);
+      toast.error(e, "No se pudo actualizar el gasto");
     } finally {
       setSaving(false);
     }
@@ -68,70 +79,55 @@ function EditRow({ gasto, onCancel, onSave }) {
       <button type="button" className="btn-ghost" onClick={onCancel} disabled={saving}>
         Cancelar
       </button>
-      {err && <ErrorState compact error={err} />}
     </div>
   );
 }
 
 function Registrar() {
-  // Paginación real: cada cambio de página pide SU página al mock, con
-  // page/pageSize en el query string. El mock de /gastos responde con
-  // { totalRecords, page, pageSize, items } — ver README. Como es un mock
-  // estático, el contenido de "items" no cambia de verdad entre páginas,
-  // pero el contrato (y la llamada) sí son los reales.
-  const [page, setPage] = useState(1);
-  const [pageData, setPageData] = useState(null); // { totalRecords, page, pageSize, items }
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const toast = useToast();
 
-  const cargarPagina = useCallback((p) => {
-    setLoading(true);
-    setError(null);
-    apiGet(`gastos?page=${p}&pageSize=${PAGE_SIZE}`)
-      .then(setPageData)
-      .catch(setError)
-      .finally(() => setLoading(false));
-  }, []);
-
+  // Paginación real: se pide UNA página al servidor (página base 0) con
+  // GET gastos?page=&size=&q=. La búsqueda también la hace el servidor, con
+  // un pequeño retraso para no pedir en cada tecla.
+  const [busqueda, setBusqueda] = useState("");
+  const [q, setQ] = useState("");
   useEffect(() => {
-    cargarPagina(page);
-  }, [page, cargarPagina]);
+    const t = setTimeout(() => setQ(busqueda.trim()), 350);
+    return () => clearTimeout(t);
+  }, [busqueda]);
+
+  const params = useMemo(() => ({ q }), [q]);
+  const { data: pageData, setData: setPageData, loading, error, page, setPage, reload } = usePagedResource("gastos", {
+    size: PAGE_SIZE,
+    params,
+  });
 
   const [descripcion, setDescripcion] = useState("");
   const [monto, setMonto] = useState("");
   const [categoria, setCategoria] = useState("Comida");
   const [errors, setErrors] = useState({});
-  const [submitError, setSubmitError] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState("");
-  const [busqueda, setBusqueda] = useState("");
   const [editandoId, setEditandoId] = useState(null);
   const [borrandoId, setBorrandoId] = useState(null);
   const [confirmarId, setConfirmarId] = useState(null);
 
-  const items = useMemo(() => pageData?.items || [], [pageData]);
-  const totalRecords = pageData?.totalRecords ?? items.length;
-  const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
-
-  // La búsqueda solo filtra dentro de lo que ya trajo esta página — con
-  // un mock estático no hay forma de pedirle al servidor que busque en
-  // todo el historial, esa es la limitación real de paginar sobre un mock.
-  const visibles = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    return q ? items.filter((g) => `${g.descripcion} ${g.categoria}`.toLowerCase().includes(q)) : items;
-  }, [items, busqueda]);
-
+  const items = useMemo(() => pageData?.content || [], [pageData]);
   const descripcionesPrevias = useMemo(() => Array.from(new Set(items.map((g) => g.descripcion))), [items]);
-
   const camposCompletos = descripcion.trim().length >= 2 && Number(monto) > 0;
 
-  const actualizarItemsLocal = (nuevosItems) => {
-    setPageData((prev) => ({ ...prev, items: nuevosItems }));
+  // El gasto nuevo aparece en la primera página (los más recientes primero).
+  const volverAlInicio = () => {
+    setBusqueda("");
+    if (q) {
+      setQ(""); // cambia el filtro → recarga sola en la página 0
+      return;
+    }
+    if (page !== 0) setPage(0);
+    else reload();
   };
 
   const onSubmit = async (ev) => {
     ev.preventDefault();
-    setSubmitError(null);
     const e = validar(descripcion, monto);
     setErrors(e);
     if (Object.keys(e).length) return;
@@ -140,39 +136,31 @@ function Registrar() {
     try {
       const nuevo = { descripcion: descripcion.trim(), monto: Number(monto), categoria };
       await apiPost("gastos", nuevo);
-      if (page === 1) {
-        actualizarItemsLocal([{ id: Date.now(), fecha: "Hoy", ...nuevo }, ...items]);
-      } else {
-        setPage(1); // el nuevo gasto se ve en la primera página
-      }
-      setToast(`Gasto guardado · ${nuevo.descripcion}`);
-      setTimeout(() => setToast(""), 3000);
+      toast.success(`Gasto guardado · ${nuevo.descripcion}`);
       setDescripcion("");
       setMonto("");
-      setBusqueda("");
+      volverAlInicio();
     } catch (err) {
-      setSubmitError(err);
+      toast.error(err, "No se pudo guardar el gasto");
     } finally {
       setSaving(false);
     }
   };
 
   const onGuardarEdicion = (actualizado) => {
-    actualizarItemsLocal(items.map((g) => (g.id === actualizado.id ? actualizado : g)));
+    setPageData((prev) => ({ ...prev, content: prev.content.map((g) => (g.id === actualizado.id ? actualizado : g)) }));
     setEditandoId(null);
-    setToast(`Gasto actualizado · ${actualizado.descripcion}`);
-    setTimeout(() => setToast(""), 3000);
+    toast.success(`Gasto actualizado · ${actualizado.descripcion}`);
   };
 
   const eliminar = async (gasto) => {
     setBorrandoId(gasto.id);
     try {
       await apiDelete(`gastos/${gasto.id}`);
-      actualizarItemsLocal(items.filter((g) => g.id !== gasto.id));
-      setToast(`Gasto eliminado · ${gasto.descripcion}`);
-      setTimeout(() => setToast(""), 3000);
+      toast.success(`Gasto eliminado · ${gasto.descripcion}`);
+      reload();
     } catch (e) {
-      setSubmitError(e);
+      toast.error(e, "No se pudo eliminar el gasto");
     } finally {
       setBorrandoId(null);
       setConfirmarId(null);
@@ -243,12 +231,6 @@ function Registrar() {
             ))}
           </div>
 
-          {submitError && (
-            <div className="shake">
-              <ErrorState compact error={submitError} />
-            </div>
-          )}
-
           <button type="submit" className="btn-primary" disabled={saving || !camposCompletos}>
             {saving && <span className="spinner" aria-hidden="true" />}
             {saving ? "Guardando…" : "Guardar gasto"}
@@ -265,106 +247,87 @@ function Registrar() {
               value={busqueda}
               onChange={setBusqueda}
               options={descripcionesPrevias}
-              placeholder="Buscar en esta página…"
+              placeholder="Buscar en el historial…"
               ariaLabel="Buscar en el historial"
             />
           </div>
         </div>
 
-        {error ? (
-          <ErrorState compact error={error} onRetry={() => cargarPagina(page)} />
-        ) : loading ? (
+        <ErrorStrip error={error} onRetry={reload} retrying={loading} />
+
+        {loading && !pageData ? (
           <ListSkeleton rows={4} />
         ) : (
-          <>
-            <div className="stagger" key={`${page}-${busqueda}`}>
-              {visibles.map((g, i) =>
-                editandoId === g.id ? (
-                  <EditRow key={g.id} gasto={g} onCancel={() => setEditandoId(null)} onSave={onGuardarEdicion} />
-                ) : (
-                  <div className="list-row" key={g.id} style={{ "--i": i }}>
-                    <div className="row-left">
-                      <div className="row-icon"><CategoryIcon categoria={g.categoria} /></div>
-                      <div>
-                        <div className="row-title">{g.descripcion}</div>
-                        <div className="row-sub">{g.fecha} · {g.categoria}</div>
+          pageData && (
+            <>
+              <div className={"stagger" + (loading ? " refreshing" : "")} key={`${pageData.page}-${q}`} aria-busy={loading}>
+                {items.map((g, i) =>
+                  editandoId === g.id ? (
+                    <EditRow key={g.id} gasto={g} onCancel={() => setEditandoId(null)} onSave={onGuardarEdicion} />
+                  ) : (
+                    <div className="list-row" key={g.id} style={{ "--i": i }}>
+                      <div className="row-left">
+                        <div className="row-icon"><CategoryIcon categoria={g.categoria} /></div>
+                        <div>
+                          <div className="row-title">{g.descripcion}</div>
+                          <div className="row-sub">{formatFecha(g.fecha)} · {g.categoria}</div>
+                        </div>
                       </div>
-                    </div>
 
-                    {confirmarId === g.id ? (
-                      <div className="row-actions" style={{ opacity: 1 }}>
-                        <span className="row-sub">¿Eliminar?</span>
-                        <button
-                          type="button"
-                          className="row-icon-btn danger"
-                          aria-label="Confirmar eliminación"
-                          disabled={borrandoId === g.id}
-                          onClick={() => eliminar(g)}
-                        >
-                          {borrandoId === g.id ? <span className="spinner" aria-hidden="true" /> : <Check size={14} />}
-                        </button>
-                        <button
-                          type="button"
-                          className="row-icon-btn"
-                          aria-label="Cancelar eliminación"
-                          onClick={() => setConfirmarId(null)}
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                        <span>-{colones(g.monto)}</span>
-                        <div className="row-actions">
-                          <button
-                            type="button"
-                            className="row-icon-btn"
-                            aria-label={`Editar ${g.descripcion}`}
-                            onClick={() => setEditandoId(g.id)}
-                          >
-                            <Pencil size={13} />
-                          </button>
+                      {confirmarId === g.id ? (
+                        <div className="row-actions" style={{ opacity: 1 }}>
+                          <span className="row-sub">¿Eliminar?</span>
                           <button
                             type="button"
                             className="row-icon-btn danger"
-                            aria-label={`Eliminar ${g.descripcion}`}
-                            onClick={() => setConfirmarId(g.id)}
+                            aria-label="Confirmar eliminación"
+                            disabled={borrandoId === g.id}
+                            onClick={() => eliminar(g)}
                           >
-                            <Trash2 size={13} />
+                            {borrandoId === g.id ? <span className="spinner" aria-hidden="true" /> : <Check size={14} />}
+                          </button>
+                          <button
+                            type="button"
+                            className="row-icon-btn"
+                            aria-label="Cancelar eliminación"
+                            onClick={() => setConfirmarId(null)}
+                          >
+                            <X size={14} />
                           </button>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              )}
-            </div>
-            {visibles.length === 0 && (
-              <p className="empty">{busqueda ? `Sin resultados para «${busqueda}» en esta página.` : "No hay gastos en esta página."}</p>
-            )}
-            <div className="pagination">
-              <span className="row-sub">
-                Página {pageData?.page ?? page} de {totalPages} · {totalRecords} gastos en total
-              </span>
-              <div className="pager">
-                <button type="button" className="btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                  ← Anterior
-                </button>
-                <span>{page} / {totalPages}</span>
-                <button type="button" className="btn-ghost" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                  Siguiente →
-                </button>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                          <span>-{colones(g.monto)}</span>
+                          <div className="row-actions">
+                            <button
+                              type="button"
+                              className="row-icon-btn"
+                              aria-label={`Editar ${g.descripcion}`}
+                              onClick={() => setEditandoId(g.id)}
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              className="row-icon-btn danger"
+                              aria-label={`Eliminar ${g.descripcion}`}
+                              onClick={() => setConfirmarId(g.id)}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                )}
               </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="toast-region" aria-live="polite">
-        {toast && (
-          <div className="toast">
-            <Check size={16} aria-hidden="true" /> {toast}
-          </div>
+              {items.length === 0 && (
+                <p className="empty">{q ? `Sin resultados para «${q}».` : "Aún no hay gastos registrados."}</p>
+              )}
+              <Pager data={pageData} onPage={setPage} busy={loading} noun="gastos" />
+            </>
+          )
         )}
       </div>
     </>

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Pencil } from "lucide-react";
-import { apiGet, apiPut } from "../api";
+import { apiGet, apiPatch } from "../api";
 import useApi from "../hooks/useApi";
+import { useToast } from "../components/Toast";
 import PageHeader from "../components/PageHeader";
-import ErrorState from "../components/ErrorState";
+import ErrorStrip from "../components/ErrorStrip";
 import { Skeleton } from "../components/Skeleton";
 import AmountInput from "../components/AmountInput";
 import { CategoryIcon } from "../icons";
@@ -12,64 +13,64 @@ import { colones } from "../format";
 const fetchPlan = () => apiGet("plan");
 
 function Plan() {
+  const toast = useToast();
   const { data: plan, setData: setPlan, error, loading, reload } = useApi(fetchPlan);
   const subtitle = "Ajustá la meta de tu quincena por categoría";
 
   const [editandoMeta, setEditandoMeta] = useState(false);
   const [nuevaMeta, setNuevaMeta] = useState("");
   const [guardandoMeta, setGuardandoMeta] = useState(false);
-  const [errorMeta, setErrorMeta] = useState(null);
+  const [errorMeta, setErrorMeta] = useState("");
 
   const [agregando, setAgregando] = useState(false);
   const [catNombre, setCatNombre] = useState("");
   const [catPresupuesto, setCatPresupuesto] = useState("");
   const [guardandoCat, setGuardandoCat] = useState(false);
-  const [errorCat, setErrorCat] = useState(null);
+  const [errorCat, setErrorCat] = useState("");
 
-  if (error) {
+  if (!plan) {
     return (
       <>
         <PageHeader title="Plan" subtitle={subtitle} />
-        <ErrorState error={error} onRetry={reload} />
-      </>
-    );
-  }
-
-  if (loading || !plan) {
-    return (
-      <>
-        <PageHeader title="Plan" subtitle={subtitle} />
-        <Skeleton h={110} r={14} />
-        <div className="card" style={{ marginTop: "1.25rem" }}>
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} h={14} style={{ marginBottom: 22 }} />
-          ))}
-        </div>
+        <ErrorStrip error={error} onRetry={reload} retrying={loading} />
+        {loading && <Skeleton h={110} r={14} />}
+        {loading && (
+          <div className="card" style={{ marginTop: "1.25rem" }}>
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} h={14} style={{ marginBottom: 22 }} />
+            ))}
+          </div>
+        )}
       </>
     );
   }
 
   const abrirEditarMeta = () => {
     setNuevaMeta(String(plan.meta));
-    setErrorMeta(null);
+    setErrorMeta("");
     setEditandoMeta(true);
   };
 
   const guardarMeta = async () => {
     const valor = Number(nuevaMeta);
     if (!(valor > 0)) {
-      setErrorMeta({ status: 400, message: "La meta debe ser mayor a 0" });
+      setErrorMeta("La meta debe ser mayor a 0");
+      return;
+    }
+    if (valor === plan.meta) {
+      setEditandoMeta(false);
       return;
     }
     setGuardandoMeta(true);
-    setErrorMeta(null);
+    setErrorMeta("");
     try {
-      const actualizado = { ...plan, meta: valor };
-      await apiPut("plan", actualizado);
-      setPlan(actualizado);
+      // PATCH: solo viaja lo que cambia (la meta).
+      await apiPatch("plan", { meta: valor });
+      setPlan({ ...plan, meta: valor });
       setEditandoMeta(false);
+      toast.success("Meta actualizada");
     } catch (e) {
-      setErrorMeta(e);
+      toast.error(e, "No se pudo guardar la meta");
     } finally {
       setGuardandoMeta(false);
     }
@@ -77,21 +78,23 @@ function Plan() {
 
   const guardarCategoria = async () => {
     if (catNombre.trim().length < 2 || !(Number(catPresupuesto) > 0)) {
-      setErrorCat({ status: 400, message: "Ponle un nombre y un presupuesto mayor a 0" });
+      setErrorCat("Ponle un nombre y un presupuesto mayor a 0");
       return;
     }
     setGuardandoCat(true);
-    setErrorCat(null);
+    setErrorCat("");
     try {
+      // PATCH con el arreglo completo de categorías, como define el contrato.
       const nueva = { nombre: catNombre.trim(), gastado: 0, presupuesto: Number(catPresupuesto) };
-      const actualizado = { ...plan, categorias: [...plan.categorias, nueva] };
-      await apiPut("plan", actualizado);
-      setPlan(actualizado);
+      const categorias = [...plan.categorias, nueva];
+      await apiPatch("plan", { categorias });
+      setPlan({ ...plan, categorias });
       setCatNombre("");
       setCatPresupuesto("");
       setAgregando(false);
+      toast.success(`Categoría agregada · ${nueva.nombre}`);
     } catch (e) {
-      setErrorCat(e);
+      toast.error(e, "No se pudo agregar la categoría");
     } finally {
       setGuardandoCat(false);
     }
@@ -100,6 +103,7 @@ function Plan() {
   return (
     <>
       <PageHeader title="Plan" subtitle={subtitle} />
+      <ErrorStrip error={error} onRetry={reload} retrying={loading} />
 
       <div className="card-hero hero-row">
         {editandoMeta ? (
@@ -114,7 +118,7 @@ function Plan() {
             <button type="button" className="btn-ghost" style={{ borderColor: "rgba(255,255,255,0.4)", color: "#fff" }} disabled={guardandoMeta} onClick={() => setEditandoMeta(false)}>
               Cancelar
             </button>
-            {errorMeta && <ErrorState compact error={errorMeta} />}
+            {errorMeta && <p className="field-error on-hero" role="alert">{errorMeta}</p>}
           </div>
         ) : (
           <>
@@ -181,7 +185,7 @@ function Plan() {
             <button type="button" className="btn-ghost" disabled={guardandoCat} onClick={() => setAgregando(false)}>
               Cancelar
             </button>
-            {errorCat && <ErrorState compact error={errorCat} />}
+            {errorCat && <p className="field-error" role="alert" style={{ flexBasis: "100%" }}>{errorCat}</p>}
           </div>
         ) : (
           <button type="button" className="chip" onClick={() => setAgregando(true)}>

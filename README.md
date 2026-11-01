@@ -5,94 +5,100 @@ consumen distintos endpoints de Mock Services en Azure API Management.
 Pensada para practicar el flujo completo del Lab 2 sin repetir el error de
 los 2 workflows en conflicto.
 
-## ⚠️ Cambio importante en REACT_APP_API_URL
+## Variables de entorno (Fase II: un microservicio por API)
 
-Ahora que hay varias páginas, `REACT_APP_API_URL` debe apuntar solo a la
-**base** de tu API (hasta la versión), SIN el nombre del recurso al final:
+`REACT_APP_API_URL` es la **base por defecto**, hasta la versión y SIN el
+recurso al final: `https://tu-apim.azure-api.net/v1`. Sirve mientras todo
+esté en una sola API de APIM (por ejemplo, con mocks).
 
-```
-https://tu-apim.azure-api.net/v1
-```
+Cuando cada microservicio tenga su propia API en APIM, cada uno puede tener
+su base. Si una variable no está, usa `REACT_APP_API_URL`:
 
-(antes era `.../v1/products`, ahora cada página en `src/pages/` agrega su
-propio recurso: `products`, `profile`, `compare`, `portal` — mira `src/api.js`)
+| Variable | Recursos que atiende |
+|---|---|
+| `REACT_APP_API_URL_GASTOS_PLAN` | `gastos`, `plan`, `resumen` |
+| `REACT_APP_API_URL_NOTIFICACIONES` | `notificaciones` |
+| `REACT_APP_API_URL_PERFIL_PRECIOS` | `perfil`, `precios` |
 
-Cada uno de esos recursos necesita su propia operación + Mock response
-en APIM, igual que hiciste para `products` en el Lab 1.
+El mapa recurso → microservicio está en `src/api.js`. Se configuran en el
+Environment `test` de GitHub, igual que `REACT_APP_API_URL`.
 
-## Páginas y recursos de este proyecto (EstudiAmbre)
+## Contrato de la API (Fase II)
 
-| Ruta | Página | Recurso en APIM |
+Todas las rutas van bajo `/v1`, con `Authorization: Bearer <Google JWT>`.
+
+| Ruta | Página | Recurso (microservicio) |
 |---|---|---|
-| `/` | Panel | GET `resumen` |
-| `/comparar` | Comparar | GET `precios` |
-| `/registrar` | Registrar | GET/POST/PUT/DELETE `gastos` |
-| `/plan` | Plan | GET/PUT `plan` |
-| `/perfil` | Perfil | GET `perfil` |
+| `/` | Panel | GET `resumen` (Gastos y Plan) + GET `precios?producto=…&page=0&size=3` (Perfil y Precios) |
+| `/comparar` | Comparar | GET `precios?producto=&page=&size=` (Perfil y Precios) |
+| `/registrar` | Registrar | GET `gastos?page=&size=&q=`, POST `gastos`, PATCH/DELETE `gastos/{id}` (Gastos y Plan) |
+| `/plan` | Plan | GET `plan`, PATCH `plan` (Gastos y Plan) |
+| `/perfil` | Perfil | GET `perfil`, PATCH `perfil` (Perfil y Precios) |
+| (campana) | Notificaciones | GET `notificaciones?page=&size=`, PATCH `notificaciones/{id}` (Notificaciones) |
 
-Cada recurso necesita su propia operación + Response 200 + Mock policy en
-APIM (mismo patrón del Lab 1, repetido por cada uno). **Actualiza estos
-Samples en APIM** — cambiaron respecto a la versión anterior para calzar
-con el diseño final:
+Reglas comunes:
 
-**`resumen`** (GET, usado en Panel)
+- **Paginación:** página base **0**. Respuesta
+  `{ "content": [...], "page": 0, "size": 10, "totalElements": 42, "totalPages": 5 }`.
+  El frontend pide **una página a la vez** (nunca todo el historial). La
+  búsqueda de gastos va al servidor con `?q=`.
+- **PATCH, no PUT:** editar gastos, plan y perfil manda solo los campos que
+  cambian. Perfil: `nombre`, `universidad`, `quincenaDias`, `preferencias`.
+  Plan: `meta` y/o `categorias` (arreglo completo).
+- **Fechas:** Epoch en milisegundos (UTC). El frontend las muestra en la zona
+  horaria del dispositivo (`formatFecha` en `src/format.js`; si llega un
+  texto como "Hoy", lo muestra tal cual, y un valor menor a 1e11 lo toma como
+  segundos por si el profe lo pide así).
+- **Errores:** `{ "status": 500, "message": "...", "correlationId": "..." }`.
+  El frontend usa el `status`.
+
+### Muestras para los mocks de APIM
+
+Mientras los microservicios no estén, estos son los Samples de cada
+operación (Response 200 + mock-response):
+
+**`resumen`** (GET) — ya no trae `nombre`, `quincenaLabel` ni `radarTop3`
 ```json
 {
-  "nombre": "Jean Carlos",
-  "quincenaLabel": "Quincena del 15 al 30 de setiembre",
   "disponible": 87400,
   "gastado": 62600,
   "meta": 150000,
-  "mensaje": "Vas bien: te quedan ₡5 830 por día hasta el 30. Ojo con los antojos de café.",
+  "mensaje": "Vas bien: te quedan ₡5 830 por día hasta el 30.",
   "ultimosMovimientos": [
-    { "id": 1, "descripcion": "Café del parqueo", "monto": 1200, "categoria": "Antojos", "fecha": "Hoy" },
-    { "id": 2, "descripcion": "Pasaje bus San Pedro", "monto": 430, "categoria": "Transporte", "fecha": "Ayer" }
-  ],
-  "radarTop3": [
-    { "id": 1, "producto": "Arroz Tío Pelón 1 kg", "tienda": "Pali San Pedro", "precio": 785 },
-    { "id": 2, "producto": "Café 1820 molido 250 g", "tienda": "Mas x Menos", "precio": 2150 }
+    { "id": "1", "descripcion": "Café del parqueo", "monto": 1200, "categoria": "Antojos", "fecha": 1793500000000 },
+    { "id": "2", "descripcion": "Pasaje bus San Pedro", "monto": 430, "categoria": "Transporte", "fecha": 1793413600000 }
   ]
 }
 ```
 
-**`precios`** (GET, usado en Comparar — la URL incluye `?producto=...` pero
-en el mock puedes ignorar el query y devolver siempre esta forma)
+**`precios`** (GET `precios?producto=...&page=0&size=3`)
 ```json
 {
-  "producto": "Arroz Tío Pelón 1 kg",
-  "totalReportes": 44,
-  "resultados": [
-    { "id": 1, "tienda": "Pali San Pedro", "zona": "San Pedro", "precio": 785, "reportes": 14 },
-    { "id": 2, "tienda": "Mas x Menos Montes de Oca", "zona": "Montes de Oca", "precio": 820, "reportes": 9 }
-  ]
+  "content": [
+    { "id": "1", "tienda": "Pali San Pedro", "zona": "San Pedro", "precio": 785, "reportes": 14 },
+    { "id": "2", "tienda": "Mas x Menos Montes de Oca", "zona": "Montes de Oca", "precio": 820, "reportes": 9 }
+  ],
+  "page": 0, "size": 3, "totalElements": 2, "totalPages": 1
 }
 ```
 
-**`gastos`** (CRUD completo — 4 operaciones distintas en APIM, todas bajo el mismo path base)
-
-- **GET `/gastos`** — historial completo
+**`gastos`**
+- GET `/gastos` (con `page`, `size`, `q` en el query; el mock puede ignorarlos)
   ```json
-  [
-    { "id": 1, "descripcion": "Café del parqueo", "monto": 1200, "categoria": "Antojos", "fecha": "Hoy" },
-    { "id": 2, "descripcion": "Pasaje bus San Pedro", "monto": 430, "categoria": "Transporte", "fecha": "Ayer" }
-  ]
+  {
+    "content": [
+      { "id": "1", "descripcion": "Café del parqueo", "monto": 1200, "categoria": "Antojos", "fecha": 1793500000000 },
+      { "id": "2", "descripcion": "Pasaje bus San Pedro", "monto": 430, "categoria": "Transporte", "fecha": 1793413600000 }
+    ],
+    "page": 0, "size": 5, "totalElements": 2, "totalPages": 1
+  }
   ```
-- **POST `/gastos`** — registrar uno nuevo. El mock puede devolver
-  simplemente `{ "ok": true }`.
-- **PUT `/gastos/{id}`** — editar uno existente. Necesita un parámetro de
-  plantilla: al escribir la URL en "Add operation" pon `/gastos/{id}` (las
-  llaves hacen que APIM detecte `id` como Template parameter automáticamente,
-  revísalo en el tab **Template**). El mock puede devolver `{ "ok": true }`.
-- **DELETE `/gastos/{id}`** — eliminar uno existente. Misma URL con
-  `{id}`. El mock puede devolver `{ "ok": true }`.
+- POST `/gastos` → el mock puede devolver `{ "ok": true }`.
+- **PATCH** `/gastos/{id}` → `{ "ok": true }`. (En APIM, la operación nueva usa
+  `/gastos/{id}`; borra la PUT.)
+- DELETE `/gastos/{id}` → `{ "ok": true }`.
 
-El frontend hace estas 4 llamadas de verdad (editar y eliminar están en
-`Registrar.js`, con los íconos de lápiz/basura que aparecen al pasar el
-mouse sobre cada fila), pero como son mocks, no esperes que un PUT/DELETE
-persista entre recargas — cada mock responde lo mismo sin importar el
-`{id}` que le llegue. Eso es normal y suficiente para la Fase I.
-
-**`plan`** (GET y PUT)
+**`plan`** (GET y **PATCH**)
 ```json
 {
   "meta": 150000,
@@ -102,36 +108,52 @@ persista entre recargas — cada mock responde lo mismo sin importar el
   ]
 }
 ```
-El botón **"Editar meta"** y **"+ Agregar categoría"** de la pantalla Plan
-mandan un **PUT `/plan`** con el objeto completo actualizado. El mock de
-esa operación puede devolver el mismo JSON de arriba o `{ "ok": true }`.
+"Editar meta" manda `PATCH /plan {"meta": ...}`; "+ Agregar categoría" manda
+`PATCH /plan {"categorias": [...]}` con el arreglo completo.
 
-**`perfil`** (GET, usado también en el sidebar/header de TODAS las páginas)
+**`perfil`** (GET y **PATCH**) — `nombre` y `quincenaDias` (arreglo) son nuevos
 ```json
 {
-  "nombre": "Jean Carlos Huertas Piedra",
-  "correo": "ssanscarlos@gmail.com",
+  "nombre": "",
   "universidad": "TEC San Carlos",
-  "quincenaDias": "Días 1 y 15 de cada mes",
+  "quincenaDias": [1, 15],
   "racha": 6,
-  "notificacionesNoLeidas": 1,
-  "insignias": ["Primera quincena completa", "10 reportes de precios", "Racha de 7 días"]
+  "insignias": ["Primera quincena completa", "10 reportes de precios", "Racha de 7 días"],
+  "preferencias": { "tema": "light" },
+  "logoUrl": "/logo.png"
 }
 ```
+`nombre` vacío = se usa el nombre de la cuenta de Google. El correo y la foto
+salen siempre de Google y no son editables. `preferencias.tema` guarda el
+tema claro/oscuro (se aplica al entrar).
 
-⚠️ Como `perfil` ahora se llama en **cada página** (para el sidebar y el
-header), asegúrate de que esa operación específica tenga el Mock response
-bien configurado — si falla, vas a ver el error repetido en las 5
-pantallas, no solo en Perfil.
-
-**`notificaciones`** (GET, nuevo — se llama en cada página para el panel de la campana)
+**`notificaciones`** (GET paginado y PATCH)
 ```json
-[
-  { "id": 1, "titulo": "Presupuesto de Transporte", "mensaje": "Te queda poco presupuesto en Transporte esta quincena.", "fecha": "Hoy", "leida": false },
-  { "id": 2, "titulo": "Bajó el precio", "mensaje": "El arroz Tío Pelón bajó de precio en Pali San Pedro.", "fecha": "Ayer", "leida": true }
-]
+{
+  "content": [
+    { "id": "1", "tipo": "PRESUPUESTO_80", "titulo": "Presupuesto de Transporte", "mensaje": "Te queda poco presupuesto en Transporte esta quincena.", "leida": false, "fecha": 1793500000000 },
+    { "id": "2", "tipo": "PRECIO", "titulo": "Bajó el precio", "mensaje": "El arroz Tío Pelón bajó de precio en Pali San Pedro.", "leida": true, "fecha": 1793413600000 }
+  ],
+  "page": 0, "size": 10, "totalElements": 2, "totalPages": 1
+}
 ```
-El punto rojo de la campana aparece si al menos una tiene `"leida": false`.
+PATCH `/notificaciones/{id}` con `{"leida": true}` (al tocar una no leída). El
+punto rojo de la campana aparece si alguna de las **cargadas** está sin leer.
+La campana pide de a 10 y "Cargar más" trae la siguiente página. Lo que llegue
+en tiempo real (SignalR, pendiente) entra arriba con `prepend` de
+`src/hooks/useNotificaciones.js`.
+
+## Errores que no estorban
+
+- **Error de una acción** (guardar, editar, borrar, marcar leída): un toast
+  abajo a la derecha que se cierra solo (6 s; los de éxito 3 s) y tiene "×".
+  No tapa la pantalla ni bloquea nada; el formulario queda abierto para
+  reintentar. Ver `src/components/Toast.js`.
+- **Error de carga** de una pantalla: una franja de una línea con
+  "Reintentar" (`src/components/ErrorStrip.js`). Si ya había datos, se siguen
+  viendo; si no, solo falta esa parte (en el Panel, "Últimos movimientos" y
+  "Radar de precios" fallan por separado porque vienen de servicios distintos).
+- La pantalla completa de error solo queda para rutas inexistentes (404).
 
 ## Fuentes e íconos
 
@@ -212,8 +234,9 @@ deja que se comporte normal y no cambia de panel.
 
 ## Agregar una página nueva
 
-1. Crea `src/pages/NuevaPagina.js` copiando el patrón de `Perfil.js`
-2. Cambia el `apiGet("...")` por el nombre del recurso que corresponda
+1. Crea `src/pages/NuevaPagina.js` copiando el patrón de `Panel.js`
+2. Cambia el `apiGet("...")` por el nombre del recurso que corresponda y,
+   si es un recurso nuevo, agrégalo a `SERVICIO_POR_RECURSO` en `src/api.js`
 3. Agrégala en `src/App.js` dentro de `<Routes>`
 4. Agrega el link en el arreglo `links` de `src/components/Layout.js`
 5. En APIM, crea la operación + Response 200 + Mock policy para ese recurso
@@ -279,8 +302,8 @@ Si al abrir la URL de Static Web Apps ves un error de CORS en la consola:
 
 API Management → tu API → versión → **All operations** → **Add policy** →
 **Allow cross-origin resource sharing (CORS)** → Origin = la URL exacta de
-tu Static Web App (sin `/` al final) → Allowed methods: **GET, POST, PUT
-y DELETE** (ya usamos los cuatro) →
+tu Static Web App (sin `/` al final) → Allowed methods: **GET, POST, PATCH
+y DELETE** (¡PATCH es obligatorio en Fase II: sin él el navegador bloquea editar gastos, plan y perfil!) →
 Allowed headers: `*` → Save.
 
 ## 6. Autenticación con Google (reemplaza la subscription key)
@@ -347,10 +370,10 @@ En vez de pedir `Ocp-Apim-Subscription-Key`, ahora APIM valida el ID token
   guarda el ID token (dura ~1 hora, Google lo renueva solo mientras la
   pestaña siga abierta gracias a `auto_select`).
 - `src/api.js` ahora manda `Authorization: Bearer <token>` en vez de
-  `Ocp-Apim-Subscription-Key`.
+  `Ocp-Apim-Subscription-Key`, y expone `apiGet`, `apiPost`, `apiPatch` y
+  `apiDelete` (ya no hay `apiPut`).
 - La app entera queda detrás de `LoginScreen` hasta que el usuario inicia
   sesión — revisa `src/App.js`.
-- El sidebar y Perfil muestran el nombre/foto/correo **reales** de la
-  cuenta de Google logueada, ya no los campos `nombre`/`correo` del mock
-  `perfil` (esos dos campos del mock ya no se usan, pero no pasa nada si
-  los dejas, simplemente se ignoran).
+- La foto y el correo son siempre los de la cuenta de Google. El nombre que
+  se muestra es `perfil.nombre` (editable en Perfil) y, si está vacío, el de
+  Google.
