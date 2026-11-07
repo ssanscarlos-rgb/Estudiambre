@@ -5,7 +5,6 @@ consumen distintos endpoints de Mock Services en Azure API Management.
 Pensada para practicar el flujo completo del Lab 2 sin repetir el error de
 los 2 workflows en conflicto.
 
-
 ## Variables de entorno (Fase II: un microservicio por API)
 
 `REACT_APP_API_URL` es la **base por defecto**, hasta la versión y SIN el
