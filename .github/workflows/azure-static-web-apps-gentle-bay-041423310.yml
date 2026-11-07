@@ -49,7 +49,8 @@ jobs:
           # Opcionales: una base por microservicio (si no existen, se usa REACT_APP_API_URL)
           REACT_APP_API_URL_GASTOS_PLAN: ${{ vars.REACT_APP_API_URL_GASTOS_PLAN }}
           REACT_APP_API_URL_NOTIFICACIONES: ${{ vars.REACT_APP_API_URL_NOTIFICACIONES }}
-          REACT_APP_API_URL_PERFIL_PRECIOS: ${{ vars.REACT_APP_API_URL_PERFIL_PRECIOS }}
+          REACT_APP_API_URL_PERFIL: ${{ vars.REACT_APP_API_URL_PERFIL }}
+          REACT_APP_API_URL_PRECIOS: ${{ vars.REACT_APP_API_URL_PRECIOS }}
           REACT_APP_GOOGLE_CLIENT_ID: ${{ vars.REACT_APP_GOOGLE_CLIENT_ID }}
           REACT_APP_VERSION: ${{ steps.version.outputs.tag || 'dev' }}
 

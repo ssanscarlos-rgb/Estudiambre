@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiGet } from "../api";
+import { normalizarPagina } from "../pagina";
 
 // Pide UNA página a la vez: GET recurso?page=&size=&...params
 // (página base 0; respuesta { content, page, size, totalElements, totalPages }).
@@ -29,8 +30,9 @@ export default function usePagedResource(resource, { size, params = {} }) {
     });
 
     apiGet(`${resource}?${query}`)
-      .then((res) => {
+      .then((respuesta) => {
         if (cancelado) return;
+        const res = normalizarPagina(respuesta, size, page);
         // Se borró el último elemento de la última página: retroceder una.
         if (res.content?.length === 0 && res.page > 0 && res.totalPages > 0) {
           setPage(res.totalPages - 1);

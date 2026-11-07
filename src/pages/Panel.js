@@ -8,6 +8,7 @@ import { Skeleton, ListSkeleton } from "../components/Skeleton";
 import AnimatedNumber from "../components/AnimatedNumber";
 import { CategoryIcon } from "../icons";
 import { PRODUCTO_RADAR } from "../catalog";
+import { normalizarPagina } from "../pagina";
 import { colones, formatFecha, quincenaLabel } from "../format";
 
 const fetchResumen = () => apiGet("resumen");
@@ -23,7 +24,7 @@ function Panel() {
   // si uno falla, el otro se sigue mostrando.
   const pct = r?.meta ? Math.min(100, (r.gastado / r.meta) * 100) : 0;
   const movimientos = r?.ultimosMovimientos || [];
-  const radar = radarData?.content || [];
+  const radar = radarData ? normalizarPagina(radarData, 3).content : [];
 
   return (
     <>

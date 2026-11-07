@@ -8,7 +8,10 @@ const DEFAULT_BASE = trimSlash(process.env.REACT_APP_API_URL);
 const BASES = {
   gastosPlan: trimSlash(process.env.REACT_APP_API_URL_GASTOS_PLAN) || DEFAULT_BASE,
   notificaciones: trimSlash(process.env.REACT_APP_API_URL_NOTIFICACIONES) || DEFAULT_BASE,
-  perfilPrecios: trimSlash(process.env.REACT_APP_API_URL_PERFIL_PRECIOS) || DEFAULT_BASE,
+  // Perfil y Precios son dos microservicios. REACT_APP_API_URL_PERFIL_PRECIOS se acepta como respaldo
+  // para los dos mientras APIM siga con una sola API.
+  perfil: trimSlash(process.env.REACT_APP_API_URL_PERFIL) || trimSlash(process.env.REACT_APP_API_URL_PERFIL_PRECIOS) || DEFAULT_BASE,
+  precios: trimSlash(process.env.REACT_APP_API_URL_PRECIOS) || trimSlash(process.env.REACT_APP_API_URL_PERFIL_PRECIOS) || DEFAULT_BASE,
 };
 
 // Primer segmento de la ruta → microservicio dueño del recurso.
@@ -17,8 +20,8 @@ const SERVICIO_POR_RECURSO = {
   plan: "gastosPlan",
   resumen: "gastosPlan",
   notificaciones: "notificaciones",
-  perfil: "perfilPrecios",
-  precios: "perfilPrecios",
+  perfil: "perfil",
+  precios: "precios",
 };
 
 function baseFor(path) {

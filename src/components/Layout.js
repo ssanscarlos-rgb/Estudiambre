@@ -10,6 +10,7 @@ import { iniciales } from "../format";
 import NotificationsPanel from "./NotificationsPanel";
 import HelpModal from "./HelpModal";
 import Logo from "./Logo";
+import ErrorBoundary from "./ErrorBoundary";
 
 const links = [
   { to: "/", label: "Panel", Icon: LayoutDashboard, end: true },
@@ -220,9 +221,11 @@ function Layout() {
           </div>
 
           <div className="page-enter" key={location.pathname}>
-            <Outlet
-              context={{ theme, toggleTheme, perfil, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName }}
-            />
+            <ErrorBoundary key={location.pathname}>
+              <Outlet
+                context={{ theme, toggleTheme, perfil, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName }}
+              />
+            </ErrorBoundary>
           </div>
         </div>
       </main>

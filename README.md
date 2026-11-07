@@ -18,7 +18,9 @@ su base. Si una variable no está, usa `REACT_APP_API_URL`:
 |---|---|
 | `REACT_APP_API_URL_GASTOS_PLAN` | `gastos`, `plan`, `resumen` |
 | `REACT_APP_API_URL_NOTIFICACIONES` | `notificaciones` |
-| `REACT_APP_API_URL_PERFIL_PRECIOS` | `perfil`, `precios` |
+| `REACT_APP_API_URL_PERFIL` | `perfil` |
+| `REACT_APP_API_URL_PRECIOS` | `precios` |
+| `REACT_APP_API_URL_PERFIL_PRECIOS` | respaldo para `perfil` y `precios` si falta su variable propia |
 
 El mapa recurso → microservicio está en `src/api.js`. Se configuran en el
 Environment `test` de GitHub, igual que `REACT_APP_API_URL`.

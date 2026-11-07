@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiGet, apiPatch } from "../api";
+import { normalizarPagina } from "../pagina";
 
 const SIZE = 10;
 
@@ -20,8 +21,9 @@ export default function useNotificaciones() {
     setLoading(true);
     setError(null);
     apiGet(`notificaciones?page=0&size=${SIZE}`)
-      .then((res) => {
-        setItems(res.content || []);
+      .then((respuesta) => {
+        const res = normalizarPagina(respuesta, SIZE, 0);
+        setItems(res.content);
         setMeta(resumen(res));
       })
       .catch(setError)
@@ -39,10 +41,11 @@ export default function useNotificaciones() {
     setLoadingMore(true);
     setErrorMore(null);
     apiGet(`notificaciones?page=${meta.page + 1}&size=${SIZE}`)
-      .then((res) => {
+      .then((respuesta) => {
+        const res = normalizarPagina(respuesta, SIZE, meta.page + 1);
         setItems((prev) => {
           const ya = new Set(prev.map((n) => n.id));
-          return [...prev, ...(res.content || []).filter((n) => !ya.has(n.id))];
+          return [...prev, ...res.content.filter((n) => !ya.has(n.id))];
         });
         setMeta(resumen(res));
       })

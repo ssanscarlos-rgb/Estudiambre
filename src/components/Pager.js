@@ -9,7 +9,7 @@ function Pager({ data, onPage, busy, noun = "resultados" }) {
   return (
     <div className="pagination">
       <span className="row-sub">
-        Página {actual + 1} de {totalPages} · {data.totalElements ?? data.content.length} {noun}
+        Página {actual + 1} de {totalPages} · {data.totalElements ?? 0} {noun}
       </span>
       <div className="pager">
         <button type="button" className="btn-ghost" disabled={busy || actual <= 0} onClick={() => onPage(actual - 1)}>
