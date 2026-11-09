@@ -77,7 +77,7 @@ button, input { font-family: inherit; }
 .icon-btn { cursor: pointer; transition: transform 0.25s var(--ease), background 0.2s; }
 .icon-btn:hover { transform: translateY(-2px) rotate(-10deg); }
 .icon-btn:active { transform: scale(0.92); }
-.bell .dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.bell .dot, .icon-btn .dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
 
 /* Cards */
 .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; transition: box-shadow 0.25s, background 0.3s, border-color 0.3s; }
