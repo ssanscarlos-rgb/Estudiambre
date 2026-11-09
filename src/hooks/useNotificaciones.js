@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiGet, apiPatch } from "../api";
 import { normalizarPagina } from "../pagina";
+import { conectarNotificaciones } from "../realtime";
 
 const SIZE = 10;
 
 const resumen = (res) => ({ page: res.page ?? 0, totalPages: res.totalPages ?? 1 });
 
 // Notificaciones de la campana: trae la página 0 y "Cargar más" agrega las
-// siguientes (página base 0). Lo que llegue en tiempo real entra arriba con
-// `prepend` (lo usará el cliente de SignalR cuando esté listo).
+// siguientes (página base 0). Lo que llega en tiempo real (Azure SignalR,
+// ver src/realtime.js) entra arriba con `prepend`.
 export default function useNotificaciones() {
   const [items, setItems] = useState([]);
   const [meta, setMeta] = useState(null);
@@ -68,6 +69,51 @@ export default function useNotificaciones() {
   const prepend = useCallback((n) => {
     setItems((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev]));
   }, []);
+
+  // Tiempo real: las notificaciones nuevas entran arriba sin recargar.
+  // Si la conexión se cae y no logra reconectar sola, se reintenta con
+  // espera creciente (30 s → 5 min). Si el backend no tiene `negotiate`
+  // (por ejemplo, la API sigue en mocks), no insiste.
+  useEffect(() => {
+    let activo = true;
+    let conexion = null;
+    let timer = null;
+    let espera = 30_000;
+
+    const reintentar = () => {
+      if (!activo) return;
+      timer = setTimeout(iniciar, espera);
+      espera = Math.min(espera * 2, 300_000);
+    };
+
+    function iniciar() {
+      conectarNotificaciones({
+        onNotificacion: prepend,
+        // Al volver, recarga la página 0 por si llegó algo mientras estuvo caída.
+        onReconectado: load,
+        onCerrada: reintentar,
+      })
+        .then((c) => {
+          if (!activo) {
+            c.stop();
+            return;
+          }
+          conexion = c;
+          espera = 30_000;
+        })
+        .catch((e) => {
+          if (e?.status === 404 || e?.status === 405) return;
+          reintentar();
+        });
+    }
+
+    iniciar();
+    return () => {
+      activo = false;
+      clearTimeout(timer);
+      conexion?.stop();
+    };
+  }, [prepend, load]);
 
   return { items, loading, error, reload: load, hasMore, loadMore, loadingMore, errorMore, markRead, prepend };
 }

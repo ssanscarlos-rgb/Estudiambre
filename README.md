@@ -17,7 +17,7 @@ su base. Si una variable no está, usa `REACT_APP_API_URL`:
 | Variable | Recursos que atiende |
 |---|---|
 | `REACT_APP_API_URL_GASTOS_PLAN` | `gastos`, `plan`, `resumen` |
-| `REACT_APP_API_URL_NOTIFICACIONES` | `notificaciones` |
+| `REACT_APP_API_URL_NOTIFICACIONES` | `notificaciones` (ej.: `https://apimproyectoestudiambre.azure-api.net/notificaciones/v1`) |
 | `REACT_APP_API_URL_PERFIL` | `perfil` |
 | `REACT_APP_API_URL_PRECIOS` | `precios` |
 | `REACT_APP_API_URL_PERFIL_PRECIOS` | respaldo para `perfil` y `precios` si falta su variable propia |
@@ -141,9 +141,16 @@ tema claro/oscuro (se aplica al entrar).
 ```
 PATCH `/notificaciones/{id}` con `{"leida": true}` (al tocar una no leída). El
 punto rojo de la campana aparece si alguna de las **cargadas** está sin leer.
-La campana pide de a 10 y "Cargar más" trae la siguiente página. Lo que llegue
-en tiempo real (SignalR, pendiente) entra arriba con `prepend` de
-`src/hooks/useNotificaciones.js`.
+La campana pide de a 10 y "Cargar más" trae la siguiente página.
+
+**Tiempo real (Azure SignalR).** Al iniciar sesión, `src/realtime.js` llama a
+`POST notificaciones/negotiate` (por APIM, con el token de Google), recibe
+`{url, accessToken}` y se conecta **directo** a Azure SignalR (APIM Consumption
+no deja pasar WebSocket). Cada evento `notificacion` entra arriba con `prepend`
+de `src/hooks/useNotificaciones.js` y enciende el punto rojo. Si la conexión
+se cae, reconecta sola y recarga la página 0; el pase de SignalR dura ~1 h y
+se renueva solo. Si la API de notificaciones sigue en mocks (sin `negotiate`),
+la campana funciona igual, sin tiempo real.
 
 ## Errores que no estorban
 
