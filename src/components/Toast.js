@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, X } from "lucide-react";
+import { AlertTriangle, Bell, Check, X } from "lucide-react";
 import { describeError } from "./ErrorState";
 
 // Avisos que se descartan solos y no tapan nada. Sirven para el resultado
@@ -36,6 +36,7 @@ export function ToastProvider({ children }) {
   const api = useMemo(
     () => ({
       success: (message) => push(message, "success"),
+      info: (message) => push(message, "info"),
       // error(err, "No se pudo guardar el gasto") → "No se pudo guardar el gasto. <causa>"
       error: (err, accion) => {
         const causa = describeError(err)[1];
@@ -51,7 +52,7 @@ export function ToastProvider({ children }) {
       <div className="toast-region">
         {toasts.map((t) => (
           <div key={t.id} className={"toast" + (t.kind === "error" ? " error" : "")} role={t.kind === "error" ? "alert" : "status"}>
-            {t.kind === "error" ? <AlertTriangle size={16} aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
+            {t.kind === "error" ? <AlertTriangle size={16} aria-hidden="true" /> : t.kind === "info" ? <Bell size={16} aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
             <span className="toast-text">{t.message}</span>
             <button type="button" className="toast-close" aria-label="Cerrar aviso" onClick={() => dismiss(t.id)}>
               <X size={14} />

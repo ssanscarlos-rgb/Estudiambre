@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { apiGet, apiPatch } from "../api";
+import { apiDelete, apiGet, apiPatch } from "../api";
 import { normalizarPagina } from "../pagina";
 import { conectarNotificaciones } from "../realtime";
+import { normalizarNotificacion } from "../notificaciones";
 
 const SIZE = 10;
 
@@ -17,6 +18,8 @@ export default function useNotificaciones() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [errorMore, setErrorMore] = useState(null);
+  // Última notificación llegada en tiempo real (la usan el aviso y la página de Notificaciones).
+  const [llegada, setLlegada] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -70,6 +73,31 @@ export default function useNotificaciones() {
     setItems((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev]));
   }, []);
 
+  // Elimina al instante y la devuelve a su lugar si el DELETE falla.
+  const remove = useCallback(async (id) => {
+    let anterior = null;
+    setItems((prev) => {
+      anterior = prev;
+      return prev.filter((n) => n.id !== id);
+    });
+    try {
+      await apiDelete(`notificaciones/${id}`);
+    } catch (e) {
+      setItems((prev) => (prev.some((n) => n.id === id) || !anterior ? prev : anterior));
+      throw e;
+    }
+  }, []);
+
+  // Entrada del tiempo real: la agrega arriba y avisa que llegó una nueva.
+  const alLlegar = useCallback(
+    (nueva) => {
+      const n = normalizarNotificacion(nueva);
+      prepend(n);
+      setLlegada({ n, k: Date.now() });
+    },
+    [prepend]
+  );
+
   // Tiempo real: las notificaciones nuevas entran arriba sin recargar.
   // Si la conexión se cae y no logra reconectar sola, se reintenta con
   // espera creciente (30 s → 5 min). Si el backend no tiene `negotiate`
@@ -88,7 +116,7 @@ export default function useNotificaciones() {
 
     function iniciar() {
       conectarNotificaciones({
-        onNotificacion: prepend,
+        onNotificacion: alLlegar,
         // Al volver, recarga la página 0 por si llegó algo mientras estuvo caída.
         onReconectado: load,
         onCerrada: reintentar,
@@ -113,7 +141,7 @@ export default function useNotificaciones() {
       clearTimeout(timer);
       conexion?.stop();
     };
-  }, [prepend, load]);
+  }, [alLlegar, load]);
 
-  return { items, loading, error, reload: load, hasMore, loadMore, loadingMore, errorMore, markRead, prepend };
+  return { items, loading, error, reload: load, hasMore, loadMore, loadingMore, errorMore, markRead, remove, prepend, llegada };
 }

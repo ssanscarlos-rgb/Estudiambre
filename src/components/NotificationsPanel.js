@@ -1,18 +1,27 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Bell, AlertTriangle } from "lucide-react";
 import { Skeleton } from "./Skeleton";
 import { formatFecha } from "../format";
+import { accionDe, infoDeTipo } from "../notificaciones";
 
 // `notif` viene de useNotificaciones (Layout). Pagina de a 10: "Cargar más"
-// agrega la siguiente página debajo, sin tapar lo ya cargado.
-function NotificationsPanel({ notif, onRead, onClose }) {
+// agrega la siguiente página debajo, sin tapar lo ya cargado. Tocar una
+// notificación la marca como leída y abre la pantalla a la que se refiere
+// (`onOpen`); "Ver todas" lleva a la página de Notificaciones.
+function NotificationsPanel({ notif, onOpen, onClose }) {
   const { items, loading, error, reload, hasMore, loadMore, loadingMore, errorMore } = notif;
 
   return (
     <>
       <div className="dropdown-backdrop" onClick={onClose} />
       <div className="dropdown-panel" role="menu" aria-label="Notificaciones">
-        <div className="dropdown-header">Notificaciones</div>
+        <div className="dropdown-header">
+          <span>Notificaciones</span>
+          <Link to="/notificaciones" className="dropdown-link" onClick={onClose}>
+            Ver todas
+          </Link>
+        </div>
 
         {loading && (
           <div style={{ padding: "0.75rem 1rem" }}>
@@ -39,28 +48,25 @@ function NotificationsPanel({ notif, onRead, onClose }) {
         )}
 
         {items.map((n) => {
-          const contenido = (
-            <>
-              <div className="notif-title">{n.titulo}</div>
-              <div className="notif-msg">{n.mensaje}</div>
-              <div className="notif-fecha">{formatFecha(n.fecha)}</div>
-            </>
-          );
-          // Tocar una no leída la marca como leída (PATCH {leida: true}).
-          return n.leida ? (
-            <div className="notif-item" key={n.id} role="menuitem">
-              {contenido}
-            </div>
-          ) : (
+          const { Icon, nivel } = infoDeTipo(n.tipo);
+          const accion = accionDe(n);
+          return (
             <button
               type="button"
-              className="notif-item unread"
+              className={"notif-item" + (n.leida ? "" : " unread")}
               key={n.id}
               role="menuitem"
-              title="Marcar como leída"
-              onClick={() => onRead(n.id)}
+              title={accion || (n.leida ? undefined : "Marcar como leída")}
+              onClick={() => onOpen(n)}
             >
-              {contenido}
+              <span className={"notif-icon " + nivel} aria-hidden="true">
+                <Icon size={15} />
+              </span>
+              <span className="notif-body">
+                <span className="notif-title">{n.titulo}</span>
+                <span className="notif-msg">{n.mensaje}</span>
+                <span className="notif-fecha">{formatFecha(n.fecha)}</span>
+              </span>
             </button>
           );
         })}

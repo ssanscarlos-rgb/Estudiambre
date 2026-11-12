@@ -74,12 +74,13 @@ function Comparar() {
                 <div key={r.id} className={"result-row" + (data.page === 0 && i === 0 ? " best" : "")} style={{ "--i": i }}>
                   <div>
                     <strong>{r.tienda}</strong>
-                    {data.page === 0 && i === 0 && <span className="tag-best">MÁS BARATO</span>}
+                    {data.page === 0 && i === 0 && <span className="tag-best">Más barato</span>}
                     <div className="row-sub">
                       <MapPin size={13} aria-hidden="true" style={{ verticalAlign: -2 }} /> {r.zona} · {r.reportes} reportes
                     </div>
                   </div>
-                  <strong>{colones(r.precio)}</strong>
+                  <span className="leader" aria-hidden="true" />
+                  <strong className="price">{colones(r.precio)}</strong>
                 </div>
               ))}
             </div>

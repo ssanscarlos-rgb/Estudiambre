@@ -11,6 +11,7 @@ import Comparar from "./pages/Comparar";
 import Registrar from "./pages/Registrar";
 import Plan from "./pages/Plan";
 import Perfil from "./pages/Perfil";
+import Notificaciones from "./pages/Notificaciones";
 
 function NotFound() {
   return (
@@ -31,6 +32,7 @@ function Gate() {
         <Route path="comparar" element={<Comparar />} />
         <Route path="registrar" element={<Registrar />} />
         <Route path="plan" element={<Plan />} />
+        <Route path="notificaciones" element={<Notificaciones />} />
         <Route path="perfil" element={<Perfil />} />
         <Route path="*" element={<NotFound />} />
       </Route>

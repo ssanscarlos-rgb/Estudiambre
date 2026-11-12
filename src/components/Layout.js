@@ -11,12 +11,14 @@ import NotificationsPanel from "./NotificationsPanel";
 import HelpModal from "./HelpModal";
 import Logo from "./Logo";
 import ErrorBoundary from "./ErrorBoundary";
+import { destinoDe } from "../notificaciones";
 
 const links = [
   { to: "/", label: "Panel", Icon: LayoutDashboard, end: true },
   { to: "/comparar", label: "Comparar", Icon: Scale },
   { to: "/registrar", label: "Registrar", Icon: PlusCircle },
   { to: "/plan", label: "Plan", Icon: Target },
+  { to: "/notificaciones", label: "Notificaciones", Icon: Bell, soloEscritorio: true },
   { to: "/perfil", label: "Perfil", Icon: User },
 ];
 
@@ -45,7 +47,6 @@ function Layout() {
   const [helpOpen, setHelpOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const lastNavRef = useRef(0);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -80,51 +81,22 @@ function Layout() {
   const unread = notif.items.filter((n) => !n.leida).length;
   const marcarLeida = (id) => notif.markRead(id).catch((e) => toast.error(e, "No se pudo marcar como leída"));
 
-  // Cambiar de panel con la rueda del mouse (arriba/abajo), pero solo
-  // cuando no queda nada que hacer scroll dentro de un contenedor con
-  // overflow (como el dropdown de notificaciones o una lista larga) —
-  // así no se "roba" el scroll normal de la página.
+  // Tocar una notificación de la campana: la marca como leída y abre la pantalla a la que se refiere.
+  const abrirNotificacion = (n) => {
+    if (!n.leida) marcarLeida(n.id);
+    setNotifOpen(false);
+    const destino = destinoDe(n);
+    if (destino) navigate(destino);
+  };
+
+  // Aviso discreto cuando llega una notificación en tiempo real.
+  const ultimaLlegada = useRef(null);
   useEffect(() => {
-    const THRESHOLD = 35;
-    const COOLDOWN = 650;
-
-    const scrollableAncestorHasRoom = (target, deltaY) => {
-      let el = target;
-      while (el && el !== document.body) {
-        const style = window.getComputedStyle(el);
-        const canScrollHere =
-          (style.overflowY === "auto" || style.overflowY === "scroll") && el.scrollHeight > el.clientHeight + 1;
-        if (canScrollHere) {
-          if (deltaY > 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1) return true;
-          if (deltaY < 0 && el.scrollTop > 1) return true;
-        }
-        el = el.parentElement;
-      }
-      return false;
-    };
-
-    const onWheel = (e) => {
-      if (Math.abs(e.deltaY) < THRESHOLD) return;
-      if (scrollableAncestorHasRoom(e.target, e.deltaY)) return;
-
-      const now = Date.now();
-      if (now - lastNavRef.current < COOLDOWN) return;
-
-      const currentIndex = links.findIndex((l) =>
-        l.end ? location.pathname === l.to : location.pathname.startsWith(l.to)
-      );
-      if (currentIndex === -1) return;
-
-      const nextIndex = currentIndex + (e.deltaY > 0 ? 1 : -1);
-      if (nextIndex < 0 || nextIndex >= links.length) return;
-
-      lastNavRef.current = now;
-      navigate(links[nextIndex].to);
-    };
-
-    window.addEventListener("wheel", onWheel, { passive: true });
-    return () => window.removeEventListener("wheel", onWheel);
-  }, [location.pathname, navigate]);
+    const l = notif.llegada;
+    if (!l || ultimaLlegada.current === l.k) return;
+    ultimaLlegada.current = l.k;
+    toast.info(l.n.titulo ? `Nueva notificación: ${l.n.titulo}` : "Tienes una notificación nueva");
+  }, [notif.llegada, toast]);
 
   return (
     <div className="layout">
@@ -143,10 +115,13 @@ function Layout() {
               key={l.to}
               to={l.to}
               end={l.end}
-              className={({ isActive }) => "sidebar-link" + (isActive ? " active" : "")}
+              className={({ isActive }) => "sidebar-link" + (isActive ? " active" : "") + (l.soloEscritorio ? " solo-escritorio" : "")}
             >
               <l.Icon size={18} className="nav-icon" aria-hidden="true" />
               <span>{l.label}</span>
+              {l.to === "/notificaciones" && unread > 0 && (
+                <span className="nav-badge" aria-label={`${unread} sin leer`}>{unread > 9 ? "9+" : unread}</span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -206,7 +181,7 @@ function Layout() {
                 {unread > 0 && <span className="dot" />}
               </button>
               {notifOpen && (
-                <NotificationsPanel notif={notif} onRead={marcarLeida} onClose={() => setNotifOpen(false)} />
+                <NotificationsPanel notif={notif} onOpen={abrirNotificacion} onClose={() => setNotifOpen(false)} />
               )}
             </div>
 
@@ -223,7 +198,7 @@ function Layout() {
           <div className="page-enter" key={location.pathname}>
             <ErrorBoundary key={location.pathname}>
               <Outlet
-                context={{ theme, toggleTheme, perfil, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName }}
+                context={{ theme, toggleTheme, perfil, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName, notif }}
               />
             </ErrorBoundary>
           </div>

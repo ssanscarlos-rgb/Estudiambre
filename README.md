@@ -36,7 +36,7 @@ Todas las rutas van bajo `/v1`, con `Authorization: Bearer <Google JWT>`.
 | `/registrar` | Registrar | GET `gastos?page=&size=&q=`, POST `gastos`, PATCH/DELETE `gastos/{id}` (Gastos y Plan) |
 | `/plan` | Plan | GET `plan`, PATCH `plan` (Gastos y Plan) |
 | `/perfil` | Perfil | GET `perfil`, PATCH `perfil` (Perfil y Precios) |
-| (campana) | Notificaciones | GET `notificaciones?page=&size=`, PATCH `notificaciones/{id}` (Notificaciones) |
+| `/notificaciones` y campana | Notificaciones | GET `notificaciones?page=&size=&leida=`, PATCH/DELETE `notificaciones/{id}`, POST `notificaciones/negotiate` (Notificaciones) |
 
 Reglas comunes:
 
@@ -152,6 +152,30 @@ se cae, reconecta sola y recarga la página 0; el pase de SignalR dura ~1 h y
 se renueva solo. Si la API de notificaciones sigue en mocks (sin `negotiate`),
 la campana funciona igual, sin tiempo real.
 
+**Página de Notificaciones (`/notificaciones`).** Historial completo, paginado
+desde el servidor (de a 10, página base 0), con filtro *Todas / Sin leer*,
+marcar como leída (una o toda la página), eliminar con confirmación y un botón
+que lleva a la pantalla de cada aviso. Se llega desde el menú lateral (con
+insignia de no leídas) o desde "Ver todas" en la campana. En el celular solo se
+llega por la campana. Marcar o eliminar en la página también actualiza la campana.
+
+Lo que el frontend espera del microservicio de Notificaciones (además de GET,
+PATCH y `negotiate`):
+
+| Qué | Detalle |
+|---|---|
+| `DELETE /v1/notificaciones/{id}` | Borra la notificación del usuario del token. Responde 204 (o 200). 404 si no existe |
+| `GET /v1/notificaciones?leida=false` | Solo las no leídas (mismo formato paginado). Si el servidor no lo soporta, la página igual descarta las leídas, pero el total de páginas sería inexacto |
+| Campo `tipo` | `PRESUPUESTO_80` o `PRESUPUESTO_100` llevan al Plan. Otro tipo se muestra sin botón de destino |
+| Campo `categoria` (opcional) | Si viene, `/plan?categoria=Comida` resalta esa categoría. Conviene guardarlo desde el evento de la cola |
+| Campo `ruta` (opcional) | Ruta interna de la app (por ejemplo `/registrar`). Si es válida, manda sobre la del tipo. Las URL externas se ignoran |
+
+En APIM hay que crear la operación `DELETE /v1/notificaciones/{id}` en la API de
+Notificaciones (el CORS ya incluye DELETE). Al llegar una notificación por
+SignalR aparece un aviso discreto, entra arriba en la campana y, si estás en la
+primera página de `/notificaciones`, la lista se actualiza sola; en otra
+página aparece "Llegaron notificaciones nuevas. Verlas".
+
 ## Errores que no estorban
 
 - **Error de una acción** (guardar, editar, borrar, marcar leída): un toast
@@ -230,16 +254,6 @@ dentro de tu propio Static Web App o una URL pública completa). El mock
 solo dice *dónde* está la imagen — el archivo en sí no sale de APIM,
 igual que en el Lab 1 las fotos de productos eran URLs a Walmart/Icon,
 no bytes de imagen dentro del JSON.
-
-## Navegar con la rueda del mouse
-
-Scroll hacia abajo/arriba sobre la página cambia de panel (Panel →
-Comparar → Registrar → Plan → Perfil y viceversa), implementado en
-`Layout.js`. Tiene un cooldown de ~650ms entre cambios para que no se
-dispare varias veces de un solo gesto, y revisa si hay algo scrolleable
-debajo del cursor (una lista larga, el dropdown de notificaciones, etc.)
-antes de hijackear el scroll — si todavía hay contenido por scrollear ahí,
-deja que se comporte normal y no cambia de panel.
 
 ## Agregar una página nueva
 

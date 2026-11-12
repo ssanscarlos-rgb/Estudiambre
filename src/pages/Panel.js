@@ -36,7 +36,7 @@ function Panel() {
 
       {r ? (
         <div className="card-hero">
-          <div className="label">DISPONIBLE ESTA QUINCENA</div>
+          <div className="label">Disponible esta quincena</div>
           <div className="amount">
             ₡<AnimatedNumber value={r.disponible} />
           </div>
@@ -92,12 +92,13 @@ function Panel() {
           ) : (
             <div className="stagger">
               {radar.map((p, i) => (
-                <div className="list-row" key={p.id} style={{ "--i": i }}>
+                <div className="list-row" key={p.id} style={{ "--i": i, gap: "0.75rem" }}>
                   <div>
                     <div className="row-title">{p.tienda}</div>
                     <div className="row-sub">{p.zona}</div>
                   </div>
-                  <div>{colones(p.precio)}</div>
+                  <span className="leader" aria-hidden="true" />
+                  <div className="price">{colones(p.precio)}</div>
                 </div>
               ))}
             </div>

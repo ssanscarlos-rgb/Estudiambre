@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil } from "lucide-react";
 import { apiGet, apiPatch } from "../api";
 import useApi from "../hooks/useApi";
@@ -16,6 +17,15 @@ function Plan() {
   const toast = useToast();
   const { data: plan, setData: setPlan, error, loading, reload } = useApi(fetchPlan);
   const subtitle = "Ajustá la meta de tu quincena por categoría";
+
+  // Una notificación de presupuesto abre /plan?categoria=Comida: esa fila se resalta y se muestra.
+  const [params] = useSearchParams();
+  const resaltar = params.get("categoria");
+  const hayPlan = !!plan;
+  useEffect(() => {
+    if (!resaltar || !hayPlan) return;
+    document.getElementById(`cat-${resaltar}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [resaltar, hayPlan]);
 
   const [editandoMeta, setEditandoMeta] = useState(false);
   const [nuevaMeta, setNuevaMeta] = useState("");
@@ -140,7 +150,12 @@ function Plan() {
           {plan.categorias.map((c, i) => {
             const pct = c.presupuesto ? (c.gastado / c.presupuesto) * 100 : 0;
             return (
-              <div className="plan-row" key={c.nombre} style={{ "--i": i }}>
+              <div
+                className={"plan-row" + (resaltar === c.nombre ? " resaltada" : "")}
+                id={`cat-${c.nombre}`}
+                key={c.nombre}
+                style={{ "--i": i }}
+              >
                 <div className="plan-head">
                   <span className="row-left">
                     <span className="row-icon"><CategoryIcon categoria={c.nombre} /></span>
