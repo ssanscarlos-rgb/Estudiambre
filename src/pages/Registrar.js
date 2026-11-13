@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { Check, Pencil, Trash2, X } from "lucide-react";
 import { apiPost, apiPatch, apiDelete } from "../api";
 import usePagedResource from "../hooks/usePagedResource";
@@ -11,8 +12,11 @@ import AmountInput from "../components/AmountInput";
 import Suggest from "../components/Suggest";
 import { CategoryIcon } from "../icons";
 import { colones, formatFecha } from "../format";
+import { vaciarLista } from "../lista";
+import { useAuth } from "../auth";
 
-const CATEGORIAS = ["Comida", "Transporte", "Servicios", "Estudio", "Antojos", "Otros"];
+// Respaldo si el Plan aún no carga o no tiene categorías. Normalmente se usan las del Plan.
+const CATEGORIAS_RESPALDO = ["Comida", "Transporte", "Servicios", "Estudio", "Antojos", "Otros"];
 const PAGE_SIZE = 5;
 
 function validar(descripcion, monto) {
@@ -25,7 +29,7 @@ function validar(descripcion, monto) {
   return e;
 }
 
-function EditRow({ gasto, onCancel, onSave }) {
+function EditRow({ gasto, categorias, onCancel, onSave }) {
   const toast = useToast();
   const [descripcion, setDescripcion] = useState(gasto.descripcion);
   const [monto, setMonto] = useState(String(gasto.monto));
@@ -65,7 +69,7 @@ function EditRow({ gasto, onCancel, onSave }) {
         onChange={(e) => setDescripcion(e.target.value)}
       />
       <select value={categoria} onChange={(e) => setCategoria(e.target.value)} aria-label="Editar categoría">
-        {CATEGORIAS.map((c) => (
+        {(categorias.includes(gasto.categoria) ? categorias : [gasto.categoria, ...categorias]).map((c) => (
           <option key={c} value={c}>{c}</option>
         ))}
       </select>
@@ -85,6 +89,18 @@ function EditRow({ gasto, onCancel, onSave }) {
 
 function Registrar() {
   const toast = useToast();
+  const { user } = useAuth();
+  // Las categorías salen del Plan (se editan allá). Un gasto nuevo también cambia lo gastado del Plan.
+  const { plan, reloadPlan } = useOutletContext();
+  const categorias = useMemo(() => {
+    const delPlan = (plan?.categorias || []).map((c) => c.nombre);
+    return delPlan.length ? delPlan : CATEGORIAS_RESPALDO;
+  }, [plan]);
+  const usaRespaldo = !(plan?.categorias || []).length;
+
+  // Comparar manda los datos por la URL: /registrar?descripcion=…&monto=…&origen=lista
+  const [urlParams, setParams] = useSearchParams();
+  const [origen, setOrigen] = useState(null);
 
   // Paginación real: se pide UNA página al servidor (página base 0) con
   // GET gastos?page=&size=&q=. La búsqueda también la hace el servidor, con
@@ -104,12 +120,28 @@ function Registrar() {
 
   const [descripcion, setDescripcion] = useState("");
   const [monto, setMonto] = useState("");
-  const [categoria, setCategoria] = useState("Comida");
+  const [categoria, setCategoria] = useState("");
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [borrandoId, setBorrandoId] = useState(null);
   const [confirmarId, setConfirmarId] = useState(null);
+
+  // La categoría elegida siempre debe existir en la lista actual.
+  useEffect(() => {
+    if (!categorias.includes(categoria)) setCategoria(categorias.includes("Comida") ? "Comida" : categorias[0]);
+  }, [categorias, categoria]);
+
+  // Datos que llegan desde Comparar: se cargan una vez y se limpia la URL.
+  useEffect(() => {
+    const d = urlParams.get("descripcion");
+    const m = urlParams.get("monto");
+    if (d === null && m === null) return;
+    if (d) setDescripcion(d.slice(0, 80));
+    if (m && Number(m) > 0) setMonto(String(Math.round(Number(m))));
+    setOrigen(urlParams.get("origen"));
+    setParams({}, { replace: true });
+  }, [urlParams, setParams]);
 
   const items = useMemo(() => pageData?.content || [], [pageData]);
   const descripcionesPrevias = useMemo(() => Array.from(new Set(items.map((g) => g.descripcion))), [items]);
@@ -137,6 +169,9 @@ function Registrar() {
       const nuevo = { descripcion: descripcion.trim(), monto: Number(monto), categoria };
       await apiPost("gastos", nuevo);
       toast.success(`Gasto guardado · ${nuevo.descripcion}`);
+      if (origen === "lista") vaciarLista(user?.email); // la compra ya quedó registrada
+      setOrigen(null);
+      reloadPlan();
       setDescripcion("");
       setMonto("");
       volverAlInicio();
@@ -150,6 +185,7 @@ function Registrar() {
   const onGuardarEdicion = (actualizado) => {
     setPageData((prev) => ({ ...prev, content: prev.content.map((g) => (g.id === actualizado.id ? actualizado : g)) }));
     setEditandoId(null);
+    reloadPlan();
     toast.success(`Gasto actualizado · ${actualizado.descripcion}`);
   };
 
@@ -158,6 +194,7 @@ function Registrar() {
     try {
       await apiDelete(`gastos/${gasto.id}`);
       toast.success(`Gasto eliminado · ${gasto.descripcion}`);
+      reloadPlan();
       reload();
     } catch (e) {
       toast.error(e, "No se pudo eliminar el gasto");
@@ -218,7 +255,7 @@ function Registrar() {
           </div>
 
           <div className="chip-group" role="group" aria-label="Categoría">
-            {CATEGORIAS.map((c) => (
+            {categorias.map((c) => (
               <button
                 type="button"
                 key={c}
@@ -230,6 +267,10 @@ function Registrar() {
               </button>
             ))}
           </div>
+          <p className="row-sub cat-hint">
+            {usaRespaldo ? "Categorías por defecto. " : "Categorías de tu Plan. "}
+            <Link to="/plan" className="dropdown-link">{usaRespaldo ? "Crear las tuyas en el Plan" : "Administrarlas"}</Link>
+          </p>
 
           <button type="submit" className="btn-primary" disabled={saving || !camposCompletos}>
             {saving && <span className="spinner" aria-hidden="true" />}
@@ -263,7 +304,7 @@ function Registrar() {
               <div className={"stagger" + (loading ? " refreshing" : "")} key={`${pageData.page}-${q}`} aria-busy={loading}>
                 {items.map((g, i) =>
                   editandoId === g.id ? (
-                    <EditRow key={g.id} gasto={g} onCancel={() => setEditandoId(null)} onSave={onGuardarEdicion} />
+                    <EditRow key={g.id} gasto={g} categorias={categorias} onCancel={() => setEditandoId(null)} onSave={onGuardarEdicion} />
                   ) : (
                     <div className="list-row" key={g.id} style={{ "--i": i }}>
                       <div className="row-left">

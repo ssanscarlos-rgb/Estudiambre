@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Scale, PlusCircle, Target, User, Flame, Bell, Moon, Sun, HelpCircle, LogOut } from "lucide-react";
+import { LayoutDashboard, Scale, PlusCircle, Target, User, Flame, Bell, HelpCircle, LogOut } from "lucide-react";
 import { apiGet, apiPatch } from "../api";
 import useApi from "../hooks/useApi";
 import useNotificaciones from "../hooks/useNotificaciones";
@@ -12,17 +12,18 @@ import HelpModal from "./HelpModal";
 import Logo from "./Logo";
 import ErrorBoundary from "./ErrorBoundary";
 import { destinoDe } from "../notificaciones";
+import { mostrar as mostrarAvisoNavegador } from "../avisosNavegador";
 
 const links = [
   { to: "/", label: "Panel", Icon: LayoutDashboard, end: true },
   { to: "/comparar", label: "Comparar", Icon: Scale },
   { to: "/registrar", label: "Registrar", Icon: PlusCircle },
   { to: "/plan", label: "Plan", Icon: Target },
-  { to: "/notificaciones", label: "Notificaciones", Icon: Bell, soloEscritorio: true },
   { to: "/perfil", label: "Perfil", Icon: User },
 ];
 
 const fetchPerfil = () => apiGet("perfil");
+const fetchPlan = () => apiGet("plan");
 
 function initialTheme() {
   try {
@@ -41,6 +42,8 @@ function Layout() {
   // contexto del Outlet (antes Perfil lo volvía a descargar).
   const { data: perfil, setData: setPerfil, loading: perfilLoading, error: perfilError, reload: reloadPerfil } =
     useApi(fetchPerfil);
+  // El plan también se pide una vez aquí: Plan lo edita y Registrar usa sus categorías.
+  const { data: plan, setData: setPlan, loading: planLoading, error: planError, reload: reloadPlan } = useApi(fetchPlan);
   const notif = useNotificaciones();
   const [theme, setTheme] = useState(initialTheme);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -95,8 +98,10 @@ function Layout() {
     const l = notif.llegada;
     if (!l || ultimaLlegada.current === l.k) return;
     ultimaLlegada.current = l.k;
+    // Con la pestaña oculta, aviso nativo del navegador (si el usuario lo activó); a la vista, el toast.
+    if (document.hidden && mostrarAvisoNavegador(l.n, () => navigate(destinoDe(l.n) || "/notificaciones"))) return;
     toast.info(l.n.titulo ? `Nueva notificación: ${l.n.titulo}` : "Tienes una notificación nueva");
-  }, [notif.llegada, toast]);
+  }, [notif.llegada, toast, navigate]);
 
   return (
     <div className="layout">
@@ -115,13 +120,10 @@ function Layout() {
               key={l.to}
               to={l.to}
               end={l.end}
-              className={({ isActive }) => "sidebar-link" + (isActive ? " active" : "") + (l.soloEscritorio ? " solo-escritorio" : "")}
+              className={({ isActive }) => "sidebar-link" + (isActive ? " active" : "")}
             >
               <l.Icon size={18} className="nav-icon" aria-hidden="true" />
               <span>{l.label}</span>
-              {l.to === "/notificaciones" && unread > 0 && (
-                <span className="nav-badge" aria-label={`${unread} sin leer`}>{unread > 9 ? "9+" : unread}</span>
-              )}
             </NavLink>
           ))}
         </nav>
@@ -184,21 +186,12 @@ function Layout() {
                 <NotificationsPanel notif={notif} onOpen={abrirNotificacion} onClose={() => setNotifOpen(false)} />
               )}
             </div>
-
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={toggleTheme}
-              aria-label={theme === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
-            >
-              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
           </div>
 
           <div className="page-enter" key={location.pathname}>
             <ErrorBoundary key={location.pathname}>
               <Outlet
-                context={{ theme, toggleTheme, perfil, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName, notif }}
+                context={{ theme, toggleTheme, perfil, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName, notif, plan, setPlan, planLoading, planError, reloadPlan }}
               />
             </ErrorBoundary>
           </div>

@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Pencil } from "lucide-react";
-import { apiGet, apiPatch } from "../api";
-import useApi from "../hooks/useApi";
+import { Link, useOutletContext, useSearchParams } from "react-router-dom";
+import { Check, Pencil, Trash2, X } from "lucide-react";
+import { apiPatch } from "../api";
 import { useToast } from "../components/Toast";
 import PageHeader from "../components/PageHeader";
 import ErrorStrip from "../components/ErrorStrip";
@@ -11,11 +10,15 @@ import AmountInput from "../components/AmountInput";
 import { CategoryIcon } from "../icons";
 import { colones } from "../format";
 
-const fetchPlan = () => apiGet("plan");
-
 function Plan() {
   const toast = useToast();
-  const { data: plan, setData: setPlan, error, loading, reload } = useApi(fetchPlan);
+  // El plan se pide una vez en Layout y se comparte: Registrar usa las mismas categorías.
+  const { plan, setPlan, planError: error, planLoading: loading, reloadPlan: reload } = useOutletContext();
+  // Al entrar se refresca para ver lo gastado al día.
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const subtitle = "Ajustá la meta de tu quincena por categoría";
 
   // Una notificación de presupuesto abre /plan?categoria=Comida: esa fila se resalta y se muestra.
@@ -37,6 +40,14 @@ function Plan() {
   const [catPresupuesto, setCatPresupuesto] = useState("");
   const [guardandoCat, setGuardandoCat] = useState(false);
   const [errorCat, setErrorCat] = useState("");
+
+  // Edición de una categoría existente (se identifica por su nombre actual).
+  const [editando, setEditando] = useState(null);
+  const [editNombre, setEditNombre] = useState("");
+  const [editPresupuesto, setEditPresupuesto] = useState("");
+  const [errorEdit, setErrorEdit] = useState("");
+  const [guardandoEdit, setGuardandoEdit] = useState(false);
+  const [confirmarBorrar, setConfirmarBorrar] = useState(null);
 
   if (!plan) {
     return (
@@ -86,19 +97,79 @@ function Plan() {
     }
   };
 
+  const categorias = plan.categorias || [];
+  const asignado = categorias.reduce((t, c) => t + (Number(c.presupuesto) || 0), 0);
+  const existe = (nombre, excepto) =>
+    categorias.some((c) => c.nombre !== excepto && c.nombre.trim().toLowerCase() === nombre.trim().toLowerCase());
+
+  // PATCH con el arreglo completo de categorías, como define el contrato.
+  const guardarCategorias = async (lista) => {
+    await apiPatch("plan", { categorias: lista });
+    setPlan({ ...plan, categorias: lista });
+  };
+
+  const abrirEditar = (c) => {
+    setEditando(c.nombre);
+    setEditNombre(c.nombre);
+    setEditPresupuesto(String(c.presupuesto));
+    setErrorEdit("");
+    setConfirmarBorrar(null);
+  };
+
+  const guardarEdicion = async (c) => {
+    const nombre = editNombre.trim();
+    if (nombre.length < 2 || !(Number(editPresupuesto) > 0)) {
+      setErrorEdit("Ponle un nombre y un presupuesto mayor a 0");
+      return;
+    }
+    if (existe(nombre, c.nombre)) {
+      setErrorEdit("Ya existe una categoría con ese nombre");
+      return;
+    }
+    if (nombre === c.nombre && Number(editPresupuesto) === c.presupuesto) {
+      setEditando(null);
+      return;
+    }
+    setGuardandoEdit(true);
+    setErrorEdit("");
+    try {
+      await guardarCategorias(categorias.map((x) => (x.nombre === c.nombre ? { ...x, nombre, presupuesto: Number(editPresupuesto) } : x)));
+      setEditando(null);
+      toast.success(`Categoría actualizada · ${nombre}`);
+    } catch (e) {
+      toast.error(e, "No se pudo actualizar la categoría");
+    } finally {
+      setGuardandoEdit(false);
+    }
+  };
+
+  const eliminarCategoria = async (c) => {
+    setGuardandoEdit(true);
+    try {
+      await guardarCategorias(categorias.filter((x) => x.nombre !== c.nombre));
+      toast.success(`Categoría eliminada · ${c.nombre}`);
+    } catch (e) {
+      toast.error(e, "No se pudo eliminar la categoría");
+    } finally {
+      setGuardandoEdit(false);
+      setConfirmarBorrar(null);
+    }
+  };
+
   const guardarCategoria = async () => {
     if (catNombre.trim().length < 2 || !(Number(catPresupuesto) > 0)) {
       setErrorCat("Ponle un nombre y un presupuesto mayor a 0");
       return;
     }
+    if (existe(catNombre)) {
+      setErrorCat("Ya existe una categoría con ese nombre");
+      return;
+    }
     setGuardandoCat(true);
     setErrorCat("");
     try {
-      // PATCH con el arreglo completo de categorías, como define el contrato.
       const nueva = { nombre: catNombre.trim(), gastado: 0, presupuesto: Number(catPresupuesto) };
-      const categorias = [...plan.categorias, nueva];
-      await apiPatch("plan", { categorias });
-      setPlan({ ...plan, categorias });
+      await guardarCategorias([...categorias, nueva]);
       setCatNombre("");
       setCatPresupuesto("");
       setAgregando(false);
@@ -146,9 +217,45 @@ function Plan() {
 
       <div className="card" style={{ marginTop: "1.25rem" }}>
         <h3>Desglose por categoría</h3>
+        <p className="row-sub" style={{ marginBottom: "0.75rem" }}>
+          Asignado {colones(asignado)} de {colones(plan.meta)}
+          {asignado > plan.meta
+            ? ` · te pasás ${colones(asignado - plan.meta)} de la meta`
+            : ` · te quedan ${colones(plan.meta - asignado)} sin asignar`}
+          . Estas categorías son las que aparecen al <Link to="/registrar" className="dropdown-link">registrar un gasto</Link>.
+        </p>
+        {categorias.length === 0 && <p className="empty">Aún no hay categorías. Agregá la primera para poder registrar gastos.</p>}
         <div className="stagger">
-          {plan.categorias.map((c, i) => {
+          {categorias.map((c, i) => {
             const pct = c.presupuesto ? (c.gastado / c.presupuesto) * 100 : 0;
+            const bloqueada = (c.gastado || 0) > 0; // con gastos asociados no se renombra ni se borra
+            if (editando === c.nombre) {
+              return (
+                <div className="edit-row" key={c.nombre} id={`cat-${c.nombre}`}>
+                  <input
+                    type="text"
+                    value={editNombre}
+                    aria-label={`Nombre de ${c.nombre}`}
+                    disabled={bloqueada || guardandoEdit}
+                    title={bloqueada ? "Ya tiene gastos: el nombre no se puede cambiar" : undefined}
+                    style={{ flex: 1, minWidth: 140 }}
+                    onChange={(e) => setEditNombre(e.target.value)}
+                  />
+                  <div style={{ width: 160 }}>
+                    <AmountInput value={editPresupuesto} onChange={setEditPresupuesto} ariaLabel={`Presupuesto de ${c.nombre}`} />
+                  </div>
+                  <button type="button" className="btn-primary" disabled={guardandoEdit} onClick={() => guardarEdicion(c)}>
+                    {guardandoEdit && <span className="spinner" aria-hidden="true" />}
+                    Guardar
+                  </button>
+                  <button type="button" className="btn-ghost" disabled={guardandoEdit} onClick={() => setEditando(null)}>
+                    Cancelar
+                  </button>
+                  {bloqueada && <p className="row-sub" style={{ flexBasis: "100%" }}>Tiene gastos este período: solo podés cambiar el presupuesto.</p>}
+                  {errorEdit && <p className="field-error" role="alert" style={{ flexBasis: "100%" }}>{errorEdit}</p>}
+                </div>
+              );
+            }
             return (
               <div
                 className={"plan-row" + (resaltar === c.nombre ? " resaltada" : "")}
@@ -161,8 +268,37 @@ function Plan() {
                     <span className="row-icon"><CategoryIcon categoria={c.nombre} /></span>
                     <strong>{c.nombre}</strong>
                   </span>
-                  <span className="row-sub">
-                    {colones(c.gastado)} de {colones(c.presupuesto)} · {Math.round(pct)}%
+                  <span className="plan-head-right">
+                    <span className="row-sub">
+                      {colones(c.gastado)} de {colones(c.presupuesto)} · {Math.round(pct)}%
+                    </span>
+                    {confirmarBorrar === c.nombre ? (
+                      <span className="row-actions" style={{ opacity: 1 }}>
+                        <span className="row-sub">¿Eliminar?</span>
+                        <button type="button" className="row-icon-btn danger" aria-label={`Confirmar eliminar ${c.nombre}`} disabled={guardandoEdit} onClick={() => eliminarCategoria(c)}>
+                          <Check size={14} />
+                        </button>
+                        <button type="button" className="row-icon-btn" aria-label="Cancelar eliminación" onClick={() => setConfirmarBorrar(null)}>
+                          <X size={14} />
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="row-actions">
+                        <button type="button" className="row-icon-btn" aria-label={`Editar ${c.nombre}`} onClick={() => abrirEditar(c)}>
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="row-icon-btn danger"
+                          aria-label={`Eliminar ${c.nombre}`}
+                          disabled={bloqueada}
+                          title={bloqueada ? "Tiene gastos este período: no se puede eliminar" : undefined}
+                          onClick={() => setConfirmarBorrar(c.nombre)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </span>
+                    )}
                   </span>
                 </div>
                 <div

@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Moon, Award, LogOut, Pencil } from "lucide-react";
+import { Moon, Bell, Award, LogOut, Pencil } from "lucide-react";
 import { apiPatch } from "../api";
 import { useAuth } from "../auth";
 import { useToast } from "../components/Toast";
 import PageHeader from "../components/PageHeader";
 import ErrorStrip from "../components/ErrorStrip";
 import { Skeleton } from "../components/Skeleton";
+import { soportado, permiso, activados, activar, desactivar, mostrar } from "../avisosNavegador";
 import { describirQuincena, iniciales, normalizarDias } from "../format";
 
 const MAX_NOMBRE = 60;
@@ -22,6 +23,64 @@ function validar({ nombre, universidad, dia1, dia2 }) {
   if (dia2 !== "" && !diaValido(dia2)) e.dia2 = "Un día entre 1 y 31.";
   else if (dia2 !== "" && !e.dia1 && Number(dia2) === Number(dia1)) e.dia2 = "Debe ser distinto al primero.";
   return e;
+}
+
+// Interruptor de avisos del navegador (Web Notifications). El permiso lo da cada navegador.
+function AvisosNavegador() {
+  const toast = useToast();
+  const [encendido, setEncendido] = useState(activados);
+  const [estado, setEstado] = useState(permiso);
+
+  const cambiar = async () => {
+    if (encendido) {
+      desactivar();
+      setEncendido(false);
+      return;
+    }
+    const p = await activar();
+    setEstado(p);
+    setEncendido(p === "granted");
+    if (p === "denied") toast.info("El navegador bloqueó los avisos. Activalos en los permisos del sitio.");
+  };
+
+  const probar = () => {
+    if (!mostrar({ id: "prueba", titulo: "EstudiAmbre", mensaje: "Así se verán tus avisos de presupuesto." })) {
+      toast.info("No se pudo mostrar el aviso de prueba");
+    }
+  };
+
+  let detalle = "Un aviso del sistema cuando llegue una notificación y no estés viendo la app.";
+  if (!soportado()) detalle = "Este navegador no permite avisos del sistema.";
+  else if (estado === "denied") detalle = "Bloqueados en este navegador: cambialo en los permisos del sitio.";
+
+  return (
+    <div className="pref-row" style={{ marginTop: "0.75rem" }}>
+      <div className="row-left">
+        <div className="row-icon"><Bell size={16} aria-hidden="true" /></div>
+        <div>
+          <div className="row-title">Avisos del navegador</div>
+          <div className="row-sub">
+            {detalle}
+            {encendido && (
+              <>
+                {" "}
+                <button type="button" className="link-btn" onClick={probar}>Probar aviso</button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        className="switch"
+        aria-checked={encendido}
+        aria-label="Avisos del navegador"
+        disabled={!soportado() || estado === "denied"}
+        onClick={cambiar}
+      />
+    </div>
+  );
 }
 
 function Perfil() {
@@ -262,6 +321,7 @@ function Perfil() {
             onClick={toggleTheme}
           />
         </div>
+        <AvisosNavegador />
       </div>
 
       <div className="card" style={{ marginTop: "1.25rem" }}>

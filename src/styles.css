@@ -331,3 +331,30 @@ button.notif-item { display: flex; gap: 0.65rem; align-items: flex-start; }
   .notif-card { flex-wrap: wrap; }
   .notif-actions { margin-left: auto; }
 }
+
+/* v5: acciones por fila en Plan, lista de compras y avisos del navegador */
+.plan-head-right { display: inline-flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.plan-row:hover .row-actions, .plan-row:focus-within .row-actions { opacity: 1; }
+@media (hover: none) { .row-actions { opacity: 1; } }
+.row-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.cat-hint { margin: 0.4rem 0 0.9rem; }
+.result-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+.btn-small { font: inherit; font-size: 0.8rem; font-weight: 600; padding: 0.35rem 0.7rem; border-radius: 999px; border: 1px solid var(--border, rgba(0,0,0,0.15)); background: transparent; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; }
+.btn-small:hover { border-color: var(--orange); color: var(--orange); }
+.btn-small.primary { background: var(--orange); border-color: var(--orange); color: #fff; }
+.btn-small.primary:hover { filter: brightness(0.95); color: #fff; }
+.btn-small:disabled { opacity: 0.5; cursor: default; }
+.result-row.con-acciones { flex-wrap: wrap; row-gap: 0.5rem; }
+.lista-compras { margin-bottom: 1.25rem; }
+.lista-head { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.lista-head h3 { margin: 0; }
+.lista-item { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px dotted rgba(0,0,0,0.2); flex-wrap: wrap; }
+.lista-item:last-of-type { border-bottom: 0; }
+.qty { display: inline-flex; align-items: center; gap: 0.35rem; }
+.qty button { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.2); background: transparent; color: inherit; cursor: pointer; font-weight: 700; line-height: 1; }
+.qty button:disabled { opacity: 0.35; cursor: default; }
+.lista-total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 2px solid currentColor; font-weight: 700; }
+.lista-acciones { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
+.prefill-note { margin-bottom: 1rem; }
+:root[data-theme="dark"] .lista-item { border-bottom-color: rgba(255,255,255,0.2); }
+:root[data-theme="dark"] .qty button { border-color: rgba(255,255,255,0.3); }

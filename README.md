@@ -32,7 +32,7 @@ Todas las rutas van bajo `/v1`, con `Authorization: Bearer <Google JWT>`.
 | Ruta | Página | Recurso (microservicio) |
 |---|---|---|
 | `/` | Panel | GET `resumen` (Gastos y Plan) + GET `precios?producto=…&page=0&size=3` (Perfil y Precios) |
-| `/comparar` | Comparar | GET `precios?producto=&page=&size=` (Perfil y Precios) |
+| `/comparar` | Comparar | GET `precios?producto=&page=&size=` (Perfil y Precios). La lista de compras no usa API: vive en el navegador |
 | `/registrar` | Registrar | GET `gastos?page=&size=&q=`, POST `gastos`, PATCH/DELETE `gastos/{id}` (Gastos y Plan) |
 | `/plan` | Plan | GET `plan`, PATCH `plan` (Gastos y Plan) |
 | `/perfil` | Perfil | GET `perfil`, PATCH `perfil` (Perfil y Precios) |
@@ -110,8 +110,33 @@ operación (Response 200 + mock-response):
   ]
 }
 ```
-"Editar meta" manda `PATCH /plan {"meta": ...}`; "+ Agregar categoría" manda
-`PATCH /plan {"categorias": [...]}` con el arreglo completo.
+"Editar meta" manda `PATCH /plan {"meta": ...}`. Agregar, editar (lápiz) y
+eliminar (papelera, con confirmación) categorías mandan
+`PATCH /plan {"categorias": [...]}` con el arreglo completo. Reglas del
+frontend: nombre mínimo 2 caracteres y sin repetirse (sin importar mayúsculas),
+presupuesto mayor a 0, y una categoría con `gastado > 0` no se renombra ni se
+elimina (los gastos viejos quedarían con otro nombre); solo se le cambia el
+presupuesto. La pantalla también muestra cuánto del total de la meta está
+asignado a categorías.
+
+**Categorías compartidas.** El plan se pide una vez en `Layout` y se comparte
+por el contexto del `Outlet`. Registrar muestra como categorías disponibles las
+del Plan (con las de siempre como respaldo si el Plan está vacío o no carga) y
+tras guardar, editar o borrar un gasto recarga el plan para que lo gastado
+quede al día.
+
+**Comparar → Registrar.** Cada tienda tiene "Registrar gasto" (abre Registrar
+con descripción y monto ya puestos, vía `/registrar?descripcion=&monto=`) y "A
+la lista". La lista de compras (cantidades, total, "Registrar compra" que
+manda el total) se guarda en `localStorage` por usuario porque el contrato no
+define un recurso de listas; se vacía al guardar la compra desde Registrar.
+
+**Avisos del navegador.** En Perfil → Preferencias se activa "Avisos del
+navegador" (Web Notifications API). Cuando llega una notificación por SignalR y
+la pestaña no está a la vista, sale un aviso del sistema que al tocarlo abre la
+pantalla de destino; con la pestaña a la vista se usa el toast de siempre. Se
+guarda por navegador. No es Web Push: con la app cerrada no llega nada (eso
+pediría service worker y un servidor con claves VAPID).
 
 **`perfil`** (GET y **PATCH**) — `nombre` y `quincenaDias` (arreglo) son nuevos
 ```json
@@ -127,7 +152,8 @@ operación (Response 200 + mock-response):
 ```
 `nombre` vacío = se usa el nombre de la cuenta de Google. El correo y la foto
 salen siempre de Google y no son editables. `preferencias.tema` guarda el
-tema claro/oscuro (se aplica al entrar).
+tema claro/oscuro (se aplica al entrar). El tema se cambia solo desde
+Perfil → Preferencias (ya no hay botón en la cabecera).
 
 **`notificaciones`** (GET paginado y PATCH)
 ```json
@@ -155,9 +181,8 @@ la campana funciona igual, sin tiempo real.
 **Página de Notificaciones (`/notificaciones`).** Historial completo, paginado
 desde el servidor (de a 10, página base 0), con filtro *Todas / Sin leer*,
 marcar como leída (una o toda la página), eliminar con confirmación y un botón
-que lleva a la pantalla de cada aviso. Se llega desde el menú lateral (con
-insignia de no leídas) o desde "Ver todas" en la campana. En el celular solo se
-llega por la campana. Marcar o eliminar en la página también actualiza la campana.
+que lleva a la pantalla de cada aviso. Ya no está en el menú lateral: se
+llega solo desde la campana (burbuja) con "Ver todas". Marcar o eliminar en la página también actualiza la campana.
 
 Lo que el frontend espera del microservicio de Notificaciones (además de GET,
 PATCH y `negotiate`):
