@@ -14,6 +14,7 @@ esté en una sola API de APIM (por ejemplo, con mocks).
 Cuando cada microservicio tenga su propia API en APIM, cada uno puede tener
 su base. Si una variable no está, usa `REACT_APP_API_URL`:
 
+
 | Variable | Recursos que atiende |
 |---|---|
 | `REACT_APP_API_URL_GASTOS_PLAN` | `gastos`, `plan`, `resumen` |
