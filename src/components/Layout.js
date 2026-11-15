@@ -13,7 +13,8 @@ import Bienvenida from "./Bienvenida";
 import Logo from "./Logo";
 import ErrorBoundary from "./ErrorBoundary";
 import { destinoDe } from "../notificaciones";
-import { mostrar as mostrarAvisoNavegador } from "../avisosNavegador";
+import { activados as avisosActivados, mostrar as mostrarAvisoNavegador } from "../avisosNavegador";
+import { suscribirPush } from "../pushWeb";
 
 const links = [
   { to: "/", label: "Panel", Icon: LayoutDashboard, end: true },
@@ -106,6 +107,12 @@ function Layout() {
   };
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Con la sesión iniciada y los avisos ya activados en este navegador, se (re)registra la
+  // suscripción push para este usuario: por ejemplo, después de cerrar sesión y volver a entrar.
+  useEffect(() => {
+    if (avisosActivados()) suscribirPush().catch(() => {});
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

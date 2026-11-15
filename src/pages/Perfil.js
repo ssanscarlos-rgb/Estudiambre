@@ -49,7 +49,7 @@ function AvisosNavegador() {
     }
   };
 
-  let detalle = "Un aviso del sistema cuando llegue una notificación y no estés viendo la app.";
+  let detalle = "Un aviso del sistema cuando llegue una notificación, aunque la app esté cerrada.";
   if (!soportado()) detalle = "Este navegador no permite avisos del sistema.";
   else if (estado === "denied") detalle = "Bloqueados en este navegador: cambialo en los permisos del sitio.";
 

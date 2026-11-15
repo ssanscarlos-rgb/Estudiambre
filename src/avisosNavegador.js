@@ -1,8 +1,11 @@
-// Avisos del navegador (Web Notifications API): cuando llega una notificación en
-// tiempo real y la pestaña no está a la vista, el sistema muestra un aviso nativo.
-// Funciona mientras la app esté abierta (aunque sea en segundo plano). Un push con la
-// app cerrada necesitaría Web Push (service worker + servidor con claves VAPID).
+// Avisos del navegador. Dos caminos, con el mismo permiso y el mismo interruptor (Perfil):
+// - App abierta (aunque sea en segundo plano): llega por SignalR y se muestra con la
+//   Web Notifications API (mostrar(), abajo).
+// - App cerrada: Web Push. Al activar, el navegador se suscribe (src/pushWeb.js) y
+//   ms-notificaciones envía cada notificación también por push; la muestra public/sw.js.
+// Ambos usan el tag `notif-<id>`, así que si coinciden el sistema deja un solo aviso.
 // La preferencia es por navegador, porque el permiso también lo es.
+import { bajaPush, suscribirPush } from "./pushWeb";
 const CLAVE = "estudiambre_avisos_navegador";
 
 export const soportado = () => typeof window !== "undefined" && "Notification" in window;
@@ -26,6 +29,11 @@ export async function activar() {
   } catch {
     /* sin acceso a localStorage */
   }
+  if (p === "granted") {
+    // Si el push falla (navegador sin soporte, backend sin claves), los avisos con la app
+    // abierta siguen funcionando.
+    await suscribirPush().catch(() => {});
+  }
   return p;
 }
 
@@ -35,6 +43,7 @@ export function desactivar() {
   } catch {
     /* sin acceso a localStorage */
   }
+  bajaPush().catch(() => {});
 }
 
 // Muestra el aviso nativo. onClick recibe el clic (para llevar a la pantalla indicada).
