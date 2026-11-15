@@ -6,13 +6,17 @@
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
-// Misma regla que destinoDe() en src/notificaciones.js: los avisos de presupuesto abren el Plan
-// en su categoría; el resto, la pantalla de notificaciones.
+// Misma regla que destinoDe() en src/notificaciones.js: la `ruta` que manda el backend (solo rutas
+// internas); si no, los avisos de presupuesto abren el Plan en su categoría y el resto, la pantalla
+// de notificaciones. Se agrega ?notif=<id> para que la app la marque como leída al abrir.
+const RUTA_INTERNA = /^\/(?!\/)[\w\-./?=&%#]*$/;
 function destino(n) {
-  if (n.tipo === "PRESUPUESTO_80" || n.tipo === "PRESUPUESTO_100") {
-    return n.categoria ? `/plan?categoria=${encodeURIComponent(n.categoria)}` : "/plan";
-  }
-  return "/notificaciones";
+  let url = "/notificaciones";
+  if (typeof n.ruta === "string" && RUTA_INTERNA.test(n.ruta)) url = n.ruta;
+  else if (n.tipo === "PRESUPUESTO_80" || n.tipo === "PRESUPUESTO_100")
+    url = n.categoria ? `/plan?categoria=${encodeURIComponent(n.categoria)}` : "/plan";
+  if (n.id) url += (url.includes("?") ? "&" : "?") + "notif=" + encodeURIComponent(n.id);
+  return url;
 }
 
 self.addEventListener("push", (event) => {
@@ -30,7 +34,7 @@ self.addEventListener("push", (event) => {
       if (ventanas.some((v) => v.visibilityState === "visible")) return;
 
       await self.registration.showNotification(n.titulo || "EstudiAmbre", {
-        body: n.mensaje || "Tienes una notificación nueva",
+        body: n.mensaje || "Tenés una notificación nueva",
         icon: "/logo.png",
         badge: "/logo.png",
         // Mismo tag que el aviso de la pestaña (src/avisosNavegador.js): si salen los dos, el

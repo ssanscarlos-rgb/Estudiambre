@@ -51,7 +51,7 @@ export function mostrar(n, onClick) {
   if (!activados()) return false;
   try {
     const aviso = new Notification(n.titulo || "EstudiAmbre", {
-      body: n.mensaje || "Tienes una notificación nueva",
+      body: n.mensaje || "Tenés una notificación nueva",
       tag: n.id !== undefined ? `notif-${n.id}` : undefined,
     });
     aviso.onclick = () => {
