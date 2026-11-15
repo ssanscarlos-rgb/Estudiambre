@@ -3,9 +3,10 @@
 //   Web Notifications API (mostrar(), abajo).
 // - App cerrada: Web Push. Al activar, el navegador se suscribe (src/pushWeb.js) y
 //   ms-notificaciones envía cada notificación también por push; la muestra public/sw.js.
-// Ambos usan el tag `notif-<id>`, así que si coinciden el sistema deja un solo aviso.
+// Si el push está activo, con la app oculta el aviso lo muestra solo el service worker (si no,
+// macOS a veces mostraba los dos aunque compartan el tag `notif-<id>`).
 // La preferencia es por navegador, porque el permiso también lo es.
-import { bajaPush, suscribirPush } from "./pushWeb";
+import { bajaPush, pushActivo, suscribirPush } from "./pushWeb";
 const CLAVE = "estudiambre_avisos_navegador";
 
 export const soportado = () => typeof window !== "undefined" && "Notification" in window;
@@ -47,8 +48,12 @@ export function desactivar() {
 }
 
 // Muestra el aviso nativo. onClick recibe el clic (para llevar a la pantalla indicada).
+// Si el push está activo, devuelve true sin mostrar nada: ese mismo aviso ya lo muestra
+// public/sw.js (sale solo cuando la app no está a la vista), y mostrar los dos lo duplicaba en
+// el centro de notificaciones de macOS.
 export function mostrar(n, onClick) {
   if (!activados()) return false;
+  if (pushActivo()) return true;
   try {
     const aviso = new Notification(n.titulo || "EstudiAmbre", {
       body: n.mensaje || "Tenés una notificación nueva",

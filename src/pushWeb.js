@@ -7,6 +7,11 @@ import { apiGet, apiPost } from "./api";
 // 3. La suscripción ({endpoint, keys}) se guarda en ms-notificaciones, asociada al usuario.
 // Cada vez que el backend emite una notificación, también la envía por push a esas suscripciones.
 
+// Si este navegador quedó suscrito en esta sesión, el aviso del sistema lo muestra el service worker
+// (con la app oculta o cerrada); la pestaña no debe mostrar otro igual (avisosNavegador.js).
+let suscritoEnSesion = false;
+export const pushActivo = () => suscritoEnSesion;
+
 export const pushSoportado = () =>
   typeof window !== "undefined" &&
   "serviceWorker" in navigator &&
@@ -54,11 +59,13 @@ export async function suscribirPush() {
   }
 
   await apiPost("notificaciones/push/suscripciones", suscripcion.toJSON());
+  suscritoEnSesion = true;
   return true;
 }
 
 // Al apagar los avisos: avisa al backend y anula la suscripción en el navegador.
 export async function bajaPush() {
+  suscritoEnSesion = false;
   if (!pushSoportado()) return;
   const registro = await navigator.serviceWorker.getRegistration();
   const suscripcion = await registro?.pushManager.getSubscription();
@@ -75,6 +82,7 @@ export async function bajaPush() {
 // le lleguen a quien use el navegador después. No llama al backend (el token ya no está): el
 // próximo push a esa suscripción recibe 410 y el backend la borra.
 export async function anularPushLocal() {
+  suscritoEnSesion = false;
   if (!pushSoportado()) return;
   const registro = await navigator.serviceWorker.getRegistration();
   const suscripcion = await registro?.pushManager.getSubscription();
