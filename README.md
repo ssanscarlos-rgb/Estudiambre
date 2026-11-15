@@ -14,7 +14,6 @@ esté en una sola API de APIM (por ejemplo, con mocks).
 Cuando cada microservicio tenga su propia API en APIM, cada uno puede tener
 su base. Si una variable no está, usa `REACT_APP_API_URL`:
 
-
 | Variable | Recursos que atiende |
 |---|---|
 | `REACT_APP_API_URL_GASTOS_PLAN` | `gastos`, `plan`, `resumen` |
@@ -131,6 +130,15 @@ con descripción y monto ya puestos, vía `/registrar?descripcion=&monto=`) y "A
 la lista". La lista de compras (cantidades, total, "Registrar compra" que
 manda el total) se guarda en `localStorage` por usuario porque el contrato no
 define un recurso de listas; se vacía al guardar la compra desde Registrar.
+
+**Comparar con pantalla fija.** En escritorio la pantalla de Comparar no se
+desplaza: la búsqueda queda arriba y solo se mueve el listado de resultados
+(la lista de compras va en una columna al lado). Con el selector *Páginas /
+Deslizar* se elige cómo paginar: **Páginas** usa los botones Anterior/Siguiente;
+**Deslizar** trae la página siguiente al llegar al final del listado con la rueda
+o el scroll. En los dos modos el servidor entrega una página a la vez (`page` y
+`size`), y la elección se recuerda en el navegador. En celular la pantalla se
+desplaza normal.
 
 **Avisos del navegador.** En Perfil → Preferencias se activa "Avisos del
 navegador" (Web Notifications API). Cuando llega una notificación por SignalR y

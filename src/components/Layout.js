@@ -151,7 +151,7 @@ function Layout() {
         </div>
       </aside>
 
-      <main className="main">
+      <main className={"main" + (location.pathname === "/comparar" ? " main-fijo" : "")}>
         <div className="main-inner">
           <div className="header-actions">
             {perfil && (

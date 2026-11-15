@@ -358,3 +358,29 @@ button.notif-item { display: flex; gap: 0.65rem; align-items: flex-start; }
 .prefill-note { margin-bottom: 1rem; }
 :root[data-theme="dark"] .lista-item { border-bottom-color: rgba(255,255,255,0.2); }
 :root[data-theme="dark"] .qty button { border-color: rgba(255,255,255,0.3); }
+
+/* v6: Comparar con pantalla fija; solo se desplaza el listado de resultados (escritorio) */
+.resultados-cabecera { display: flex; justify-content: space-between; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.resultados-pie, .resultados-contador { text-align: center; margin: 0.6rem 0 0; }
+.resultados-scroll:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; border-radius: 8px; }
+@media (min-width: 801px) {
+  .main-fijo { height: 100vh; overflow: hidden; display: flex; flex-direction: column; padding-bottom: 1rem; }
+  .main-fijo > .main-inner { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .main-fijo .page-enter { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .comparar-fijo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .comparar-fijo > .page-header, .comparar-fijo > form { flex-shrink: 0; }
+  .comparar-fijo .page-header { margin-bottom: 0.75rem; }
+  .comparar-fijo .page-header h1 { font-size: 1.8rem; }
+  .comparar-fijo > form.mb { margin-bottom: 0.75rem; }
+  .comparar-cuerpo { flex: 1; min-height: 0; display: flex; gap: 1rem; }
+  .comparar-resultados { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .comparar-cuerpo .lista-compras { width: 320px; flex-shrink: 0; margin: 0; display: flex; flex-direction: column; min-height: 0; }
+  .comparar-cuerpo .lista-items { flex: 1; min-height: 0; overflow-y: auto; }
+  .comparar-cuerpo .lista-item { flex-wrap: wrap; }
+  .resultados-fijo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .resultados-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 0.35rem; }
+  .resultados-fijo > .pagination { flex-shrink: 0; margin-top: 0.6rem; }
+}
+
+.result-row .producto-nombre { font-weight: 700; font-size: 0.85rem; color: var(--text); }
+@media (max-width: 800px) { .comparar-cuerpo { display: flex; flex-direction: column-reverse; } }
