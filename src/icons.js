@@ -1,4 +1,4 @@
-import { Utensils, Bus, Wifi, BookOpen, Coffee, Receipt } from "lucide-react";
+import { Utensils, Bus, Wifi, BookOpen, Coffee, Receipt, HeartPulse, Shirt, Clapperboard, PawPrint, Home } from "lucide-react";
 
 export const CATEGORY_ICONS = {
   Comida: Utensils,
@@ -7,6 +7,11 @@ export const CATEGORY_ICONS = {
   Estudio: BookOpen,
   Antojos: Coffee,
   Otros: Receipt,
+  Salud: HeartPulse,
+  Ropa: Shirt,
+  Entretenimiento: Clapperboard,
+  Mascotas: PawPrint,
+  Hogar: Home,
 };
 
 export function CategoryIcon({ categoria, size = 16, ...props }) {

@@ -131,6 +131,24 @@ la lista". La lista de compras (cantidades, total, "Registrar compra" que
 manda el total) se guarda en `localStorage` por usuario porque el contrato no
 define un recurso de listas; se vacía al guardar la compra desde Registrar.
 
+**Asistente de bienvenida (primera vez).** Si `perfil.preferencias.onboarded`
+no es `true`, al entrar aparece una guía de 4 pasos: plan de partida (4
+plantillas predefinidas), categorías (se pueden agregar propias), ingreso y
+porcentaje a ahorrar (la meta de gasto = ingreso − ahorro) y presupuesto por
+categoría, todo editable. Al terminar manda un solo
+`PATCH /plan {meta, categorias}` y luego
+`PATCH /perfil {preferencias: {onboarded: true, planTipo, ingresoQuincena, ahorroPct}}`.
+"Omitir por ahora" solo marca `onboarded: true`. Las categorías con gastos
+registrados se conservan siempre (no se pueden quitar). Si el PATCH al perfil
+falla, se recuerda en el navegador (`localStorage`) para no volver a mostrarlo.
+Desde Perfil → Plan de ahorro → "Volver a configurar" se reabre (útil en la
+defensa). Las claves de `preferencias` son simples (texto, número o booleano),
+como exige el microservicio de Perfil.
+
+**Montos negativos.** Los colones se muestran con el signo delante (`-₡30 388`).
+Si el disponible de la quincena es negativo, el Panel lo pone en rojo y avisa
+cuánto se pasó de la meta.
+
 **Comparar con pantalla fija.** En escritorio la pantalla de Comparar no se
 desplaza: la búsqueda queda arriba y solo se mueve el listado de resultados
 (la lista de compras va en una columna al lado). Con el selector *Páginas /

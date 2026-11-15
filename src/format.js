@@ -1,4 +1,8 @@
-export const colones = (n) => `₡${Number(n || 0).toLocaleString("es-CR")}`;
+// Monto en colones con el signo delante: -₡30 388 (no ₡-30 388). Los decimales se redondean.
+export const colones = (n) => {
+  const v = Math.round(Number(n) || 0);
+  return `${v < 0 ? "-" : ""}₡${Math.abs(v).toLocaleString("es-CR")}`;
+};
 
 export const iniciales = (nombre = "") =>
   nombre.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?";

@@ -384,3 +384,44 @@ button.notif-item { display: flex; gap: 0.65rem; align-items: flex-start; }
 
 .result-row .producto-nombre { font-weight: 700; font-size: 0.85rem; color: var(--text); }
 @media (max-width: 800px) { .comparar-cuerpo { display: flex; flex-direction: column-reverse; } }
+
+/* v8: disponible negativo */
+.card-hero .amount { overflow-wrap: anywhere; }
+.card-hero .amount.largo { font-size: clamp(1.9rem, 4.6vw, 3.2rem); }
+.card-hero .amount.negativo { color: #b3261e; }
+:root[data-theme="dark"] .card-hero .amount.negativo { color: #ff8a80; }
+.hero-alerta { margin: -0.6rem 0 1rem; font-size: 0.9rem; font-weight: 600; color: #b3261e; }
+:root[data-theme="dark"] .hero-alerta { color: #ff8a80; }
+
+/* v8: asistente de bienvenida */
+.bienvenida { position: fixed; inset: 0; z-index: 60; background: var(--bg); overflow-y: auto; display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 1rem 3rem; animation: fade-in 0.25s var(--ease); }
+.bienvenida-card { width: 100%; max-width: 680px; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem 1.75rem 1.5rem; margin-top: 3vh; }
+.bienvenida-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.bienvenida-paso { font-size: 0.85rem; font-weight: 600; color: var(--dim); }
+.paso-barra { display: flex; gap: 0.35rem; margin: 0.6rem 0 1.4rem; }
+.paso-barra span { flex: 1; height: 5px; border-radius: 999px; background: var(--icon-bg); }
+.paso-barra span.lleno { background: var(--orange); }
+.bienvenida h2 { margin: 0 0 0.4rem; font-size: 1.5rem; }
+.bienvenida-texto { color: var(--dim); font-size: 0.92rem; line-height: 1.5; margin: 0 0 1rem; }
+.bienvenida-aviso { background: var(--icon-bg); border-radius: 10px; padding: 0.6rem 0.85rem; font-size: 0.85rem; margin: 0 0 1rem; }
+.plan-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.plan-opcion { text-align: left; font: inherit; color: inherit; background: var(--card); border: 2px solid var(--border); border-radius: 12px; padding: 0.85rem 0.95rem; cursor: pointer; display: flex; flex-direction: column; gap: 0.3rem; transition: border-color 0.15s, background 0.15s; }
+.plan-opcion span { font-size: 0.85rem; color: var(--dim); line-height: 1.4; }
+.plan-opcion small { font-size: 0.78rem; font-weight: 600; color: var(--green); }
+.plan-opcion:hover { border-color: var(--orange); }
+.plan-opcion.elegido { border-color: var(--orange); background: var(--ticket); box-shadow: 0 0 0 3px rgba(240, 122, 31, 0.18); }
+:root[data-theme="dark"] .plan-opcion small { color: #6fcaa3; }
+.presupuesto-fila { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px dotted var(--border); flex-wrap: wrap; }
+.resumen-ahorro { display: flex; gap: 1rem; margin: 1.1rem 0 0.6rem; padding: 0.85rem 1rem; border-radius: 12px; background: var(--icon-bg); }
+.resumen-ahorro > div { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; }
+.resumen-ahorro span { font-size: 0.8rem; color: var(--dim); }
+.resumen-ahorro strong { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.resumen-ahorro.excede strong { color: #b3261e; }
+:root[data-theme="dark"] .resumen-ahorro.excede strong { color: #ff8a80; }
+.bienvenida-acciones { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+@media (max-width: 800px) {
+  .plan-opciones { grid-template-columns: 1fr; }
+  .bienvenida { padding: 0.5rem; }
+  .bienvenida-card { padding: 1.1rem 1rem; margin-top: 0; }
+  .bienvenida-acciones .btn-primary, .bienvenida-acciones .btn-ghost { flex: 1; justify-content: center; }
+}

@@ -9,6 +9,7 @@ import { useToast } from "./Toast";
 import { iniciales } from "../format";
 import NotificationsPanel from "./NotificationsPanel";
 import HelpModal from "./HelpModal";
+import Bienvenida from "./Bienvenida";
 import Logo from "./Logo";
 import ErrorBoundary from "./ErrorBoundary";
 import { destinoDe } from "../notificaciones";
@@ -23,6 +24,24 @@ const links = [
 ];
 
 const fetchPerfil = () => apiGet("perfil");
+
+// Respaldo local del "ya configuró su plan": evita que el asistente reaparezca si el PATCH al perfil falló.
+const claveOnboarding = (email) => `estudiambre_onboarded_${email || "anon"}`;
+const leerOnboarding = (email) => {
+  try {
+    return localStorage.getItem(claveOnboarding(email)) === "1";
+  } catch {
+    return false;
+  }
+};
+const guardarOnboarding = (email, valor) => {
+  try {
+    if (valor) localStorage.setItem(claveOnboarding(email), "1");
+    else localStorage.removeItem(claveOnboarding(email));
+  } catch {
+    /* sin acceso a localStorage */
+  }
+};
 const fetchPlan = () => apiGet("plan");
 
 function initialTheme() {
@@ -48,6 +67,43 @@ function Layout() {
   const [theme, setTheme] = useState(initialTheme);
   const [notifOpen, setNotifOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [configurado, setConfigurado] = useState(() => leerOnboarding(user?.email));
+
+  // Primera vez: el perfil todavía no está marcado como configurado → asistente de bienvenida.
+  const mostrarBienvenida = !!perfil && !perfilLoading && !planLoading && perfil.preferencias?.onboarded !== true && !configurado;
+
+  const marcarConfigurado = async (extra = {}) => {
+    setConfigurado(true);
+    guardarOnboarding(user?.email, true);
+    const preferencias = { onboarded: true, ...extra };
+    setPerfil((p) => ({ ...p, preferencias: { ...p.preferencias, ...preferencias } }));
+    try {
+      await apiPatch("perfil", { preferencias });
+    } catch {
+      toast.info("No pudimos guardar tu preferencia en el servidor; la recordamos en este navegador.");
+    }
+  };
+  const terminarBienvenida = async (nuevoPlan, extra) => {
+    setPlan((p) => ({ ...(p || {}), ...nuevoPlan }));
+    await marcarConfigurado(extra);
+    reloadPlan();
+    toast.success("¡Listo! Tu plan quedó configurado");
+  };
+  const omitirBienvenida = async () => {
+    await marcarConfigurado();
+    toast.info("Podés configurar tu plan cuando quieras desde Perfil");
+  };
+  // Perfil → "Volver a configurar".
+  const reabrirBienvenida = async () => {
+    setConfigurado(false);
+    guardarOnboarding(user?.email, false);
+    setPerfil((p) => ({ ...p, preferencias: { ...p.preferencias, onboarded: false } }));
+    try {
+      await apiPatch("perfil", { preferencias: { onboarded: false } });
+    } catch {
+      /* si falla, igual se reabre en esta sesión */
+    }
+  };
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -191,13 +247,14 @@ function Layout() {
           <div className="page-enter" key={location.pathname}>
             <ErrorBoundary key={location.pathname}>
               <Outlet
-                context={{ theme, toggleTheme, perfil, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName, notif, plan, setPlan, planLoading, planError, reloadPlan }}
+                context={{ theme, toggleTheme, perfil, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName, notif, plan, setPlan, planLoading, planError, reloadPlan, reabrirBienvenida }}
               />
             </ErrorBoundary>
           </div>
         </div>
       </main>
 
+      {mostrarBienvenida && <Bienvenida plan={plan} onTerminar={terminarBienvenida} onOmitir={omitirBienvenida} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
     </div>
   );

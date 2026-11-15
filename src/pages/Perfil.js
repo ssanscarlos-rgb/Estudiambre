@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Moon, Bell, Award, LogOut, Pencil } from "lucide-react";
+import { Moon, Bell, Award, LogOut, Pencil, PiggyBank } from "lucide-react";
 import { apiPatch } from "../api";
 import { useAuth } from "../auth";
 import { useToast } from "../components/Toast";
@@ -8,7 +8,7 @@ import PageHeader from "../components/PageHeader";
 import ErrorStrip from "../components/ErrorStrip";
 import { Skeleton } from "../components/Skeleton";
 import { soportado, permiso, activados, activar, desactivar, mostrar } from "../avisosNavegador";
-import { describirQuincena, iniciales, normalizarDias } from "../format";
+import { colones, describirQuincena, iniciales, normalizarDias } from "../format";
 
 const MAX_NOMBRE = 60;
 const MAX_UNIVERSIDAD = 100;
@@ -84,7 +84,7 @@ function AvisosNavegador() {
 }
 
 function Perfil() {
-  const { theme, toggleTheme, perfil: p, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName } =
+  const { theme, toggleTheme, perfil: p, setPerfil, perfilLoading, perfilError, reloadPerfil, displayName, reabrirBienvenida } =
     useOutletContext();
   const { user, signOut } = useAuth();
   const toast = useToast();
@@ -322,6 +322,20 @@ function Perfil() {
           />
         </div>
         <AvisosNavegador />
+        <div className="pref-row" style={{ marginTop: "0.75rem" }}>
+          <div className="row-left">
+            <div className="row-icon"><PiggyBank size={16} aria-hidden="true" /></div>
+            <div>
+              <div className="row-title">Plan de ahorro</div>
+              <div className="row-sub">
+                {p.preferencias?.ahorroPct > 0
+                  ? `Ahorrás el ${p.preferencias.ahorroPct}% de ${colones(p.preferencias.ingresoQuincena || 0)} por quincena. `
+                  : "Elegí tu plan, tus categorías y cuánto querés ahorrar. "}
+                <button type="button" className="link-btn" onClick={reabrirBienvenida}>Volver a configurar</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ marginTop: "1.25rem" }}>

@@ -37,9 +37,12 @@ function Panel() {
       {r ? (
         <div className="card-hero">
           <div className="label">Disponible esta quincena</div>
-          <div className="amount">
-            ₡<AnimatedNumber value={r.disponible} />
+          <div className={"amount" + (r.disponible < 0 ? " negativo" : "") + (String(Math.abs(Math.round(r.disponible))).length > 7 ? " largo" : "")}>
+            {r.disponible < 0 ? "-" : ""}₡<AnimatedNumber value={Math.abs(r.disponible)} />
           </div>
+          {r.disponible < 0 && (
+            <div className="hero-alerta" role="status">Te pasaste {colones(Math.abs(r.disponible))} de tu meta de la quincena</div>
+          )}
           <div
             className="progress-track"
             role="progressbar"
@@ -52,7 +55,7 @@ function Panel() {
           </div>
           <div className="progress-meta">
             <span>Gastaste {colones(r.gastado)} de {colones(r.meta)}</span>
-            <span>{Math.round(100 - pct)}% restante</span>
+            <span>{r.gastado > r.meta ? "Meta superada" : `${Math.round(100 - pct)}% restante`}</span>
           </div>
           {r.mensaje && <div className="hero-message">{r.mensaje}</div>}
         </div>

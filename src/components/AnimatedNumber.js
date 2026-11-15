@@ -19,7 +19,8 @@ function AnimatedNumber({ value, duration = 900 }) {
     return () => cancelAnimationFrame(raf);
   }, [value, duration]);
 
-  return <>{shown.toLocaleString("es-CR")}</>;
+  // Siempre se muestra el valor absoluto: el signo lo pone quien lo usa, delante del símbolo de moneda.
+  return <>{Math.abs(shown).toLocaleString("es-CR")}</>;
 }
 
 export default AnimatedNumber;
