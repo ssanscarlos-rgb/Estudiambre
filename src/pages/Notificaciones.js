@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { ArrowRight, Bell, Check, CheckCheck, Trash2, X } from "lucide-react";
 import usePagedResource from "../hooks/usePagedResource";
@@ -11,33 +11,6 @@ import { formatFecha } from "../format";
 import { accionDe, destinoDe, infoDeTipo } from "../notificaciones";
 
 const SIZE = 10;
-
-// Mensaje cortado a 2 líneas con "Ver más…" solo si de verdad no cabe (las recomendaciones
-// largas, sobre todo en el celular). Se vuelve a medir al cambiar el tamaño de la ventana.
-function Mensaje({ texto }) {
-  const ref = useRef(null);
-  const [abierto, setAbierto] = useState(false);
-  const [largo, setLargo] = useState(false);
-  useLayoutEffect(() => {
-    const medir = () => {
-      const el = ref.current;
-      if (el && !abierto) setLargo(el.scrollHeight > el.clientHeight + 1);
-    };
-    medir();
-    window.addEventListener("resize", medir);
-    return () => window.removeEventListener("resize", medir);
-  }, [texto, abierto]);
-  return (
-    <>
-      <p ref={ref} className={"notif-msg" + (abierto ? "" : " recortado")}>{texto}</p>
-      {largo && (
-        <button type="button" className="ver-mas" aria-expanded={abierto} onClick={() => setAbierto((a) => !a)}>
-          {abierto ? "Ver menos" : "Ver más…"}
-        </button>
-      )}
-    </>
-  );
-}
 
 // Página propia de notificaciones: historial completo (nuevas y pasadas) paginado
 // desde el servidor, con filtro "Sin leer", marcar como leída, eliminar y un botón
@@ -103,7 +76,7 @@ function Notificaciones() {
   };
 
   const abrir = async (n) => {
-    const destino = accionDe(n) && destinoDe(n);
+    const destino = destinoDe(n);
     if (destino) navigate(destino);
     marcarLeida(n);
   };
@@ -131,7 +104,7 @@ function Notificaciones() {
 
   return (
     <>
-      <PageHeader title="Notificaciones" subtitle="Avisos de presupuesto, consejos y novedades, los nuevos y los anteriores" />
+      <PageHeader title="Notificaciones" subtitle="Tus avisos de presupuesto, los nuevos y los anteriores" />
 
       <div className="notif-toolbar">
         <div className="segmented" role="group" aria-label="Filtrar notificaciones">
@@ -179,8 +152,8 @@ function Notificaciones() {
               <Bell size={22} aria-hidden="true" />
               <p>
                 {filtro === "sin-leer"
-                  ? "No tenés notificaciones sin leer."
-                  : "Todavía no tenés notificaciones. Te avisamos cuando una categoría llegue al 80 % de su presupuesto."}
+                  ? "No tienes notificaciones sin leer."
+                  : "Todavía no tienes notificaciones. Te avisamos cuando una categoría llegue al 80% de su presupuesto."}
               </p>
             </div>
           )}
@@ -201,7 +174,7 @@ function Notificaciones() {
                       <strong className="notif-title">{n.titulo}</strong>
                       {!n.leida && <span className="tag-new">Nueva</span>}
                     </div>
-                    <Mensaje texto={n.mensaje} />
+                    <p className="notif-msg">{n.mensaje}</p>
                     <div className="notif-fecha">{formatFecha(n.fecha)}</div>
                     {accion && (
                       <button type="button" className="link-btn" onClick={() => abrir(n)}>

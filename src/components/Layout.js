@@ -13,8 +13,7 @@ import Bienvenida from "./Bienvenida";
 import Logo from "./Logo";
 import ErrorBoundary from "./ErrorBoundary";
 import { destinoDe } from "../notificaciones";
-import { activados as avisosActivados, mostrar as mostrarAvisoNavegador } from "../avisosNavegador";
-import { suscribirPush } from "../pushWeb";
+import { mostrar as mostrarAvisoNavegador } from "../avisosNavegador";
 
 const links = [
   { to: "/", label: "Panel", Icon: LayoutDashboard, end: true },
@@ -108,12 +107,6 @@ function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Con la sesión iniciada y los avisos ya activados en este navegador, se (re)registra la
-  // suscripción push para este usuario: por ejemplo, después de cerrar sesión y volver a entrar.
-  useEffect(() => {
-    if (avisosActivados()) suscribirPush().catch(() => {});
-  }, []);
-
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try {
@@ -151,25 +144,9 @@ function Layout() {
   const abrirNotificacion = (n) => {
     if (!n.leida) marcarLeida(n.id);
     setNotifOpen(false);
-    navigate(destinoDe(n) || "/notificaciones");
+    const destino = destinoDe(n);
+    if (destino) navigate(destino);
   };
-
-  // Al tocar un push (public/sw.js) la app se abre con ?notif=<id>: se marca como leída y se
-  // limpia la URL (replace, para que "Atrás" no la repita).
-  const { markRead } = notif;
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const id = params.get("notif");
-    if (!id) return;
-    markRead(id).catch(() => {});
-    params.delete("notif");
-    const resto = params.toString();
-    navigate({ pathname: location.pathname, search: resto ? `?${resto}` : "" }, { replace: true });
-  }, [location.search, location.pathname, markRead, navigate]);
-
-  // El aviso de la pestaña usa la versión más reciente de abrirNotificacion sin volver a correr el efecto.
-  const abrirRef = useRef(abrirNotificacion);
-  abrirRef.current = abrirNotificacion;
 
   // Aviso discreto cuando llega una notificación en tiempo real.
   const ultimaLlegada = useRef(null);
@@ -178,9 +155,9 @@ function Layout() {
     if (!l || ultimaLlegada.current === l.k) return;
     ultimaLlegada.current = l.k;
     // Con la pestaña oculta, aviso nativo del navegador (si el usuario lo activó); a la vista, el toast.
-    if (document.hidden && mostrarAvisoNavegador(l.n, () => abrirRef.current(l.n))) return;
-    toast.info(l.n.titulo ? `Nueva notificación: ${l.n.titulo}` : "Tenés una notificación nueva");
-  }, [notif.llegada, toast]);
+    if (document.hidden && mostrarAvisoNavegador(l.n, () => navigate(destinoDe(l.n) || "/notificaciones"))) return;
+    toast.info(l.n.titulo ? `Nueva notificación: ${l.n.titulo}` : "Tienes una notificación nueva");
+  }, [notif.llegada, toast, navigate]);
 
   return (
     <div className="layout">

@@ -149,6 +149,18 @@ como exige el microservicio de Perfil.
 Si el disponible de la quincena es negativo, el Panel lo pone en rojo y avisa
 cuánto se pasó de la meta.
 
+**Token para Postman (Perfil → Preferencias).** Una fila pequeña con el botón
+"Copiar" pone en el portapapeles el token de Google de la sesión actual (el mismo
+que la app manda en `Authorization`), para pegarlo en la variable `token` del
+ambiente de Postman. Muestra cuándo vence (dura cerca de una hora) y, si ya
+venció, pide entrar de nuevo. Es un token personal: no se comparte.
+
+**Decisión de base de datos fuera de Azure.** Perfil y Precios usan MongoDB Atlas,
+que no está en Azure. El profesor Marcos Rodríguez aprobó esta decisión y que los
+dos servicios compartan un cluster con una base por servicio. La alternativa, si
+se exigiera Azure, es Cosmos DB for MongoDB (solo cambia `MONGO_URI`). El detalle
+está en el README de `ms-perfil` y `ms-precios`.
+
 **Comparar con pantalla fija.** En escritorio la pantalla de Comparar no se
 desplaza: la búsqueda queda arriba y solo se mueve el listado de resultados
 (la lista de compras va en una columna al lado). Con el selector *Páginas /

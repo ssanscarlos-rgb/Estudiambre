@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Moon, Bell, Award, LogOut, Pencil, PiggyBank } from "lucide-react";
+import { Moon, Bell, Award, LogOut, Pencil, PiggyBank, KeyRound } from "lucide-react";
 import { apiPatch } from "../api";
 import { useAuth } from "../auth";
 import { useToast } from "../components/Toast";
@@ -8,7 +8,8 @@ import PageHeader from "../components/PageHeader";
 import ErrorStrip from "../components/ErrorStrip";
 import { Skeleton } from "../components/Skeleton";
 import { soportado, permiso, activados, activar, desactivar, mostrar } from "../avisosNavegador";
-import { colones, describirQuincena, iniciales, normalizarDias } from "../format";
+import { colones, describirQuincena, iniciales, normalizarDias, formatFecha } from "../format";
+import { copiarTexto, leerToken, vencimientoDe } from "../tokenDev";
 
 const MAX_NOMBRE = 60;
 const MAX_UNIVERSIDAD = 100;
@@ -23,6 +24,37 @@ function validar({ nombre, universidad, dia1, dia2 }) {
   if (dia2 !== "" && !diaValido(dia2)) e.dia2 = "Un día entre 1 y 31.";
   else if (dia2 !== "" && !e.dia1 && Number(dia2) === Number(dia1)) e.dia2 = "Debe ser distinto al primero.";
   return e;
+}
+
+// Fila de configuración para desarrollo: copia el token de la sesión para pegarlo en Postman.
+function TokenPostman() {
+  const toast = useToast();
+
+  const copiar = async () => {
+    const token = leerToken();
+    if (!token) return toast.info("No hay sesión activa: entrá de nuevo");
+    const vence = vencimientoDe(token);
+    if (vence !== null && vence <= Date.now()) return toast.info("El token venció: cerrá sesión y entrá de nuevo");
+    if (await copiarTexto(token)) toast.success("Token copiado: pegalo en la variable token de Postman");
+    else toast.info("No se pudo copiar el token");
+  };
+
+  const vence = vencimientoDe(leerToken());
+  return (
+    <div className="pref-row" style={{ marginTop: "0.75rem" }}>
+      <div className="row-left">
+        <div className="row-icon"><KeyRound size={16} aria-hidden="true" /></div>
+        <div>
+          <div className="row-title">Token para Postman</div>
+          <div className="row-sub">
+            Token de Google de tu sesión, para la variable <code>token</code>.
+            {vence !== null && ` Vence ${formatFecha(vence)}`} · No lo compartas.
+          </div>
+        </div>
+      </div>
+      <button type="button" className="btn-ghost" onClick={copiar}>Copiar</button>
+    </div>
+  );
 }
 
 // Interruptor de avisos del navegador (Web Notifications). El permiso lo da cada navegador.
@@ -49,7 +81,7 @@ function AvisosNavegador() {
     }
   };
 
-  let detalle = "Un aviso del sistema cuando llegue una notificación, aunque la app esté cerrada.";
+  let detalle = "Un aviso del sistema cuando llegue una notificación y no estés viendo la app.";
   if (!soportado()) detalle = "Este navegador no permite avisos del sistema.";
   else if (estado === "denied") detalle = "Bloqueados en este navegador: cambialo en los permisos del sitio.";
 
@@ -322,6 +354,7 @@ function Perfil() {
           />
         </div>
         <AvisosNavegador />
+        <TokenPostman />
         <div className="pref-row" style={{ marginTop: "0.75rem" }}>
           <div className="row-left">
             <div className="row-icon"><PiggyBank size={16} aria-hidden="true" /></div>

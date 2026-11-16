@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { setAuthToken } from "./api";
-import { anularPushLocal } from "./pushWeb";
 
 const AuthContext = createContext(null);
 const CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
@@ -46,7 +45,6 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = () => {
-    anularPushLocal().catch(() => {}); // los push de esta cuenta no le llegan al siguiente usuario
     setAuthToken(null);
     setUser(null);
     try {
