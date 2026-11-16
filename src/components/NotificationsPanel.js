@@ -43,7 +43,7 @@ function NotificationsPanel({ notif, onOpen, onClose }) {
         {!loading && !error && items.length === 0 && (
           <div className="dropdown-empty">
             <Bell size={18} aria-hidden="true" />
-            <p>No tienes notificaciones nuevas.</p>
+            <p>No tenés notificaciones nuevas.</p>
           </div>
         )}
 

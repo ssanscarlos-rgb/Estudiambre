@@ -76,12 +76,13 @@ function AvisosNavegador() {
   };
 
   const probar = () => {
-    if (!mostrar({ id: "prueba", titulo: "EstudiAmbre", mensaje: "Así se verán tus avisos de presupuesto." })) {
+    // Aviso solo local: no pasa por el backend, así que no queda en el historial.
+    if (!mostrar({ id: "prueba", titulo: "EstudiAmbre", mensaje: "Así se verán tus avisos." }, undefined, { forzar: true })) {
       toast.info("No se pudo mostrar el aviso de prueba");
     }
   };
 
-  let detalle = "Un aviso del sistema cuando llegue una notificación y no estés viendo la app.";
+  let detalle = "Un aviso del sistema cuando llegue una notificación, aunque la app esté cerrada.";
   if (!soportado()) detalle = "Este navegador no permite avisos del sistema.";
   else if (estado === "denied") detalle = "Bloqueados en este navegador: cambialo en los permisos del sitio.";
 
