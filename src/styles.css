@@ -218,6 +218,25 @@ input[aria-invalid="true"] { border-color: var(--danger); }
 .modal-actions { display: flex; justify-content: space-between; gap: 0.75rem; }
 .modal-actions .btn-primary, .modal-actions .btn-ghost { flex: 1; justify-content: center; }
 
+/* Racha: minijuego diario (RachaJuego.js) */
+button.badge-streak { border: 0; font-family: inherit; cursor: pointer; }
+.badge-streak.apagada { background: var(--border); color: var(--dim); }
+.badge-streak.apagada:hover { color: var(--orange-text); background: var(--orange-bg); }
+.badge-streak.recien svg { animation: llama 0.9s var(--ease) 2; color: var(--orange); }
+.racha-card { max-width: 400px; }
+.racha-card .btn-primary { margin: 0 auto; justify-content: center; }
+.racha-juego { position: relative; height: 170px; margin: 0.25rem 0 0.5rem; border-radius: 12px; background: var(--orange-bg); touch-action: none; user-select: none; -webkit-user-select: none; }
+.racha-moneda { position: absolute; width: 46px; height: 46px; border-radius: 50%; border: 3px solid #c98a12; background: radial-gradient(circle at 35% 30%, #ffe8a3, #f5b82e 60%, #d9930f); color: #7a4a00; font-weight: 800; font-size: 1.2rem; cursor: grab; touch-action: none; box-shadow: 0 3px 0 #b97a0c; transition: transform 0.25s var(--ease); z-index: 2; }
+.racha-moneda.arrastrando { cursor: grabbing; transition: none; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); z-index: 3; }
+.racha-chanchito { position: absolute; right: 18px; top: 50%; translate: 0 -50%; width: 120px; height: 120px; border-radius: 50%; background: #f8c8d4; color: #b8476a; display: flex; align-items: center; justify-content: center; border: 3px dashed #e08aa3; }
+.racha-chanchito.come { animation: pop 0.25s var(--ease); }
+.racha-contador { font-size: 0.85rem; font-weight: 600; color: var(--dim); margin-bottom: 1rem; }
+.racha-llama { display: inline-flex; align-items: center; justify-content: center; width: 84px; height: 84px; border-radius: 50%; margin-bottom: 0.75rem; }
+.racha-llama.apagada { background: var(--border); color: var(--dim); }
+.racha-llama.encendida { background: var(--orange-bg); color: var(--orange); animation: llama 1.1s var(--ease) infinite alternate; }
+@keyframes llama { 0% { transform: scale(0.9) rotate(-4deg); } 100% { transform: scale(1.08) rotate(4deg); } }
+@media (prefers-reduced-motion: reduce) { .racha-llama.encendida, .badge-streak.recien svg { animation: none; } }
+
 /* Notificaciones */
 .dropdown-backdrop { position: fixed; inset: 0; z-index: 15; }
 .dropdown-panel { position: absolute; top: calc(100% + 8px); right: 0; width: 300px; max-height: 340px; overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15); z-index: 20; animation: rise 0.2s var(--ease) both; }

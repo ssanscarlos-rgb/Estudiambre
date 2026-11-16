@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Scale, PlusCircle, Target, User, Flame, Bell, HelpCircle, LogOut } from "lucide-react";
-import { apiGet, apiPatch } from "../api";
+import { apiGet, apiPatch, apiPost } from "../api";
 import useApi from "../hooks/useApi";
 import useNotificaciones from "../hooks/useNotificaciones";
 import { useAuth } from "../auth";
@@ -10,6 +10,7 @@ import { iniciales } from "../format";
 import NotificationsPanel from "./NotificationsPanel";
 import HelpModal from "./HelpModal";
 import Bienvenida from "./Bienvenida";
+import RachaJuego from "./RachaJuego";
 import Logo from "./Logo";
 import ErrorBoundary from "./ErrorBoundary";
 import { destinoDe } from "../notificaciones";
@@ -72,6 +73,54 @@ function Layout() {
 
   // Primera vez: el perfil todavía no está marcado como configurado → asistente de bienvenida.
   const mostrarBienvenida = !!perfil && !perfilLoading && !planLoading && perfil.preferencias?.onboarded !== true && !configurado;
+
+  // Racha: el minijuego sale al entrar si hoy todavía no se encendió (lo decide ms-perfil con la
+  // fecha de Costa Rica). Si se cierra, se puede abrir de nuevo tocando la racha.
+  const [rachaCerrada, setRachaCerrada] = useState(false);
+  const [rachaRecien, setRachaRecien] = useState(false);
+  const rachaEncendida = useRef(null); // respuesta del POST, se aplica al cerrar el minijuego
+  const rachaPendiente = !!perfil && perfil.rachaEncendidaHoy === false;
+  const mostrarRacha = rachaPendiente && !perfilLoading && !mostrarBienvenida && !rachaCerrada;
+  const encenderRacha = async () => {
+    const p = await apiPost("perfil/racha");
+    rachaEncendida.current = p;
+    return p;
+  };
+  // Al cerrar: si se encendió, se actualiza el perfil y el fueguito del encabezado se anima.
+  const cerrarRacha = () => {
+    setRachaCerrada(true);
+    if (rachaEncendida.current) {
+      setPerfil(rachaEncendida.current);
+      rachaEncendida.current = null;
+      setRachaRecien(true);
+    }
+  };
+
+  // A la medianoche de Costa Rica (UTC−6) se vuelve a pedir el perfil: si la app quedó abierta,
+  // aparece el minijuego del día nuevo. Al volver a la pestaña también se revisa, porque el
+  // navegador puede atrasar los temporizadores de las pestañas en segundo plano.
+  const diaCargado = useRef(null);
+  useEffect(() => {
+    if (!perfil) return undefined;
+    const DIA = 86400000, CR = 6 * 3600000;
+    const diaCR = () => Math.floor((Date.now() - CR) / DIA);
+    diaCargado.current = diaCR();
+    const nuevoDia = () => {
+      setRachaCerrada(false);
+      setRachaRecien(false);
+      reloadPerfil();
+    };
+    const espera = (diaCR() + 1) * DIA + CR - Date.now() + 2000;
+    const t = setTimeout(nuevoDia, espera);
+    const alVolver = () => {
+      if (document.visibilityState === "visible" && diaCR() !== diaCargado.current) nuevoDia();
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, [perfil, reloadPerfil]);
 
   const marcarConfigurado = async (extra = {}) => {
     setConfigurado(true);
@@ -233,11 +282,21 @@ function Layout() {
       <main className={"main" + (location.pathname === "/comparar" ? " main-fijo" : "")}>
         <div className="main-inner">
           <div className="header-actions">
-            {perfil && (
-              <span className="badge-streak">
-                <Flame size={14} aria-hidden="true" /> Racha: {perfil.racha} días
-              </span>
-            )}
+            {perfil &&
+              (rachaPendiente ? (
+                <button
+                  type="button"
+                  className="badge-streak apagada"
+                  title="Encendé tu racha de hoy"
+                  onClick={() => setRachaCerrada(false)}
+                >
+                  <Flame size={14} aria-hidden="true" /> Racha: {perfil.racha} {perfil.racha === 1 ? "día" : "días"}
+                </button>
+              ) : (
+                <span className={"badge-streak" + (rachaRecien ? " recien" : "")}>
+                  <Flame size={14} aria-hidden="true" /> Racha: {perfil.racha} {perfil.racha === 1 ? "día" : "días"}
+                </span>
+              ))}
 
             <button
               type="button"
@@ -279,6 +338,14 @@ function Layout() {
 
       {mostrarBienvenida && <Bienvenida plan={plan} onTerminar={terminarBienvenida} onOmitir={omitirBienvenida} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
+      {mostrarRacha && !helpOpen && (
+        <RachaJuego
+          nombre={(displayName || "").split(" ")[0]}
+          rachaPerdida={perfil.rachaPerdida || 0}
+          onEncender={encenderRacha}
+          onCerrar={cerrarRacha}
+        />
+      )}
     </div>
   );
 }
